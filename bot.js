@@ -7,9 +7,11 @@ const adminHandlers = require('./handlers/admin');
 const banCheck = require('./middleware/banCheck');
 const privateOnly = require('./middleware/privateOnly');
 const rateLimit = require('./middleware/rateLimit');
+const adminGuard = require('./middleware/adminGuard');
 const { startJobs } = require('./jobs');
 const { mainMenu } = require('./utils/ui');
 const financeService = require('./services/financeService');
+const adminKb = require('./keyboards/admin');
 
 if (!config.botToken) {
   console.error('BOT_TOKEN missing');
@@ -22,9 +24,17 @@ bot.use(session());
 bot.use(privateOnly);
 bot.use(rateLimit(30, 60000));
 bot.use(banCheck);
+bot.use(adminGuard);
 
-// Commands
-bot.start(userHandlers.start);
+// ─── Start: admin gets panel, users get onboarding ───
+bot.start(async (ctx) => {
+  if (adminHandlers.isAdmin(ctx)) {
+    return adminHandlers.showPanel(ctx);
+  }
+  return userHandlers.start(ctx);
+});
+
+// ─── User commands (admins blocked by adminGuard for non-admin paths) ───
 bot.command('balance', userHandlers.balance);
 bot.command('play', (ctx) => userHandlers.play.showPlayScreen(ctx));
 bot.command('deposit', userHandlers.deposit.showDeposit);
@@ -35,42 +45,77 @@ bot.command('about', userHandlers.about);
 bot.command('support', userHandlers.support.showSupport);
 bot.command('responsible', userHandlers.responsible.show);
 
-// Admin
-bot.command('stats', adminHandlers.stats);
-bot.command('pending', adminHandlers.listPendingWd);
+// ─── Admin commands ───
+bot.command('admin', (ctx) => adminHandlers.showPanel(ctx));
+bot.command('stats', (ctx) => adminHandlers.stats(ctx));
+bot.command('pending', (ctx) => adminHandlers.listPendingWd(ctx));
 bot.command('approve', async (ctx) => {
   if (!adminHandlers.isAdmin(ctx)) return;
-  const parts = ctx.message.text.split(' ');
+  const parts = ctx.message.text.split(/\s+/);
   const id = parts[1];
   const tx = parts[2] || null;
-  if (!id) return ctx.reply('Usage: /approve <uuid> [txhash]');
+  if (!id) return ctx.reply('Usage: /approve <uuid> [txhash]', adminKb.main());
   const w = await financeService.approveWithdrawal(id, ctx.from.id, tx);
-  if (w) await ctx.reply(`Approved ${id}`);
-  else await ctx.reply('Not found or already processed');
+  await ctx.reply(w ? `Approved ${id}` : 'Not found or already processed', adminKb.main());
 });
 bot.command('reject', async (ctx) => {
   if (!adminHandlers.isAdmin(ctx)) return;
-  const parts = ctx.message.text.split(' ');
+  const parts = ctx.message.text.split(/\s+/);
   const id = parts[1];
   const reason = parts.slice(2).join(' ') || 'Rejected by admin';
-  if (!id) return ctx.reply('Usage: /reject <uuid> <reason>');
+  if (!id) return ctx.reply('Usage: /reject <uuid> <reason>', adminKb.main());
   const w = await financeService.rejectWithdrawal(id, ctx.from.id, reason);
-  if (w) await ctx.reply(`Rejected ${id}`);
-  else await ctx.reply('Not found');
+  await ctx.reply(w ? `Rejected ${id}` : 'Not found', adminKb.main());
 });
+bot.command('setdraw', (ctx) => adminHandlers.startSetDraw(ctx));
+bot.command('taxexport', (ctx) => adminHandlers.taxExport(ctx));
+bot.command('broadcast', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const msg = ctx.message.text.replace(/^\/broadcast(@\w+)?\s*/, '').trim();
+  if (msg) {
+    // One-shot: /broadcast Hello everyone
+    const broadcastService = require('./services/broadcastService');
+    const id = await broadcastService.createBroadcast({
+      message: msg,
+      audience: 'all',
+      createdBy: ctx.from.id,
+    });
+    await ctx.reply('📢 Sending…');
+    const result = await broadcastService.sendBroadcast(bot, id);
+    return ctx.reply(
+      `Done. Sent: ${result?.sent ?? 0}, failed: ${result?.fail ?? 0}`,
+      require('./keyboards/admin').main()
+    );
+  }
+  return adminHandlers.startBroadcast(ctx);
+});
+bot.command('dm', (ctx) => adminHandlers.startDm(ctx));
+bot.command('liability', (ctx) => adminHandlers.liability(ctx));
+bot.command('tickets', (ctx) => adminHandlers.listSupport(ctx));
 
-// Text menu buttons
+// ─── User text menu ───
 bot.hears('🎰 Play Lotto', (ctx) => userHandlers.play.showPlayScreen(ctx));
 bot.hears('💰 Balance', userHandlers.balance);
 bot.hears('📥 Deposit', userHandlers.deposit.showDeposit);
 bot.hears('📤 Withdraw', userHandlers.withdraw.showWithdraw);
 bot.hears('📊 Activity', userHandlers.activity);
 bot.hears('👥 Referral', userHandlers.referral);
-bot.hears(['ℹ️ About','ℹ️ How to Play'], userHandlers.about);
+bot.hears(['ℹ️ About', 'ℹ️ How to Play'], userHandlers.about);
 bot.hears('🆘 Support', userHandlers.support.showSupport);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
 
-// Callbacks – play
+// ─── Admin text menu ───
+bot.hears('📈 Stats', (ctx) => adminHandlers.stats(ctx));
+bot.hears('💸 Pending WD', (ctx) => adminHandlers.listPendingWd(ctx));
+bot.hears('📢 Broadcast', (ctx) => adminHandlers.startBroadcast(ctx));
+bot.hears('💬 Message User', (ctx) => adminHandlers.startDm(ctx));
+bot.hears('🎫 Support Tickets', (ctx) => adminHandlers.listSupport(ctx));
+bot.hears('🛡️ Liability', (ctx) => adminHandlers.liability(ctx));
+bot.hears('🎲 Set Draw', (ctx) => adminHandlers.startSetDraw(ctx));
+bot.hears('📊 Tax Export', (ctx) => adminHandlers.taxExport(ctx));
+bot.hears('🔒 Admin Panel', (ctx) => adminHandlers.showPanel(ctx));
+
+// ─── User callbacks ───
 bot.action('play:add', userHandlers.play.startAddLine);
 bot.action('play:qp', (ctx) => userHandlers.play.quickPick(ctx, 1));
 bot.action('play:plus3', (ctx) => userHandlers.play.quickPick(ctx, 3));
@@ -78,39 +123,45 @@ bot.action('play:plus5', (ctx) => userHandlers.play.quickPick(ctx, 5));
 bot.action('play:confirm', userHandlers.play.confirmPlay);
 bot.action('play:cancel', userHandlers.play.cancelPlay);
 bot.action(/^num:/, userHandlers.play.handleNumber);
-
-// Deposit callbacks
 bot.action('dep:usdt_trc20', (ctx) => userHandlers.deposit.showAddress(ctx, 'usdt_trc20'));
 bot.action('dep:usdt_erc20', (ctx) => userHandlers.deposit.showAddress(ctx, 'usdt_erc20'));
 bot.action('dep:claim', userHandlers.deposit.startClaim);
-
-// Withdraw
 bot.action(/^wd:(.+)/, (ctx) => {
-  const chain = ctx.match[1];
-  userHandlers.withdraw.startWithdraw(ctx, chain);
+  userHandlers.withdraw.startWithdraw(ctx, ctx.match[1]);
 });
-
-// Responsible
 bot.action('resp:timeout24', (ctx) => userHandlers.responsible.setTimeout(ctx, 24));
 bot.action('resp:exclude7', (ctx) => userHandlers.responsible.setTimeout(ctx, 24 * 7));
 bot.action('resp:daily', (ctx) => userHandlers.responsible.promptLimit(ctx, 'daily'));
 bot.action('resp:session', (ctx) => userHandlers.responsible.promptLimit(ctx, 'session'));
 bot.action('menu:main', async (ctx) => {
   await ctx.answerCbQuery();
+  if (adminHandlers.isAdmin(ctx)) {
+    return adminHandlers.showPanel(ctx);
+  }
   await ctx.reply('Main menu', mainMenu());
 });
 
-// Text fallback for multi-step
+// ─── Admin callbacks ───
+bot.on('callback_query', async (ctx, next) => {
+  if (await adminHandlers.handleAdminCallback(ctx, bot)) return;
+  return next();
+});
+
+// ─── Text fallback ───
 bot.on('text', async (ctx) => {
   if (ctx.message.text.startsWith('/')) return;
 
+  if (await adminHandlers.handleAdminText(ctx, bot)) return;
   if (await userHandlers.start.handleOnboardingText(ctx)) return;
   if (await userHandlers.deposit.handleClaimText(ctx)) return;
   if (await userHandlers.withdraw.handleWithdrawText(ctx)) return;
   if (await userHandlers.support.handleSupportText(ctx)) return;
 
-  // Limit setting
   if (ctx.session?.pendingLimit) {
+    if (adminHandlers.isAdmin(ctx)) {
+      delete ctx.session.pendingLimit;
+      return ctx.reply('Admins cannot set player limits on their own account.', adminKb.main());
+    }
     const type = ctx.session.pendingLimit;
     const val = parseFloat(ctx.message.text);
     delete ctx.session.pendingLimit;
@@ -119,64 +170,10 @@ bot.on('text', async (ctx) => {
     }
     const user = await require('./services/userService').getUser(ctx.from.id);
     const daily = type === 'daily' ? val : user.daily_limit_usd;
-    const session = type === 'session' ? val : user.session_limit_usd;
-    await require('./services/userService').setLimits(ctx.from.id, daily, session);
+    const sessionLim = type === 'session' ? val : user.session_limit_usd;
+    await require('./services/userService').setLimits(ctx.from.id, daily, sessionLim);
     return ctx.reply(`✅ ${type} limit set to $${val.toFixed(2)}`, mainMenu());
   }
-});
-
-
-// Admin: manual RNG override for next ticket
-bot.command('setdraw', async (ctx) => {
-  if (!adminHandlers.isAdmin(ctx)) return;
-  const parts = ctx.message.text.split(/\s+/).slice(1).map(Number);
-  if (parts.length !== 4 || parts.some((n) => isNaN(n))) {
-    return ctx.reply('Usage: /setdraw 1 5 12 33');
-  }
-  try {
-    require('./services/rngService').setPendingOverride(parts, ctx.from.id, 'telegram setdraw');
-    await ctx.reply(`Next draw override set: ${parts.sort((a,b)=>a-b).join(', ')} (expires in 5 min)`);
-  } catch (e) {
-    await ctx.reply(e.message);
-  }
-});
-
-bot.command('taxexport', async (ctx) => {
-  if (!adminHandlers.isAdmin(ctx)) return;
-  const tax = require('./services/taxService');
-  const to = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-  const csv = await tax.exportCsv(from, to);
-  const sum = await tax.summary();
-  await ctx.replyWithDocument(
-    { source: Buffer.from(csv), filename: `tax-ledger-${from}-${to}.csv` },
-    { caption: `Tax summary: GGR $${Number(sum.ggr).toFixed(2)} | Tax $${Number(sum.tax).toFixed(2)}` }
-  );
-});
-
-bot.command('broadcast', async (ctx) => {
-  if (!adminHandlers.isAdmin(ctx)) return;
-  const msg = ctx.message.text.replace(/^\/broadcast\s*/, '').trim();
-  if (!msg) return ctx.reply('Usage: /broadcast Your message here');
-  const broadcastService = require('./services/broadcastService');
-  const id = await broadcastService.createBroadcast({
-    message: msg,
-    audience: 'all',
-    createdBy: ctx.from.id,
-  });
-  await ctx.reply(`Broadcast queued (${id}). Sending…`);
-  const result = await broadcastService.sendBroadcast(bot, id);
-  await ctx.reply(`Done. Sent: ${result.sent}, failed: ${result.fail}`);
-});
-
-bot.command('liability', async (ctx) => {
-  if (!adminHandlers.isAdmin(ctx)) return;
-  const li = require('./services/liabilityService');
-  const paid = await li.getTodayPrizesPaid();
-  const config = require('./config');
-  await ctx.reply(
-    `Today prizes paid: $${paid.toFixed(2)} / cap $${config.dailyLiabilityCapUsd}\nRemaining: $${Math.max(0, config.dailyLiabilityCapUsd - paid).toFixed(2)}`
-  );
 });
 
 bot.catch((err, ctx) => {
@@ -187,13 +184,31 @@ bot.catch((err, ctx) => {
 async function launch() {
   startJobs();
   if (config.webhookUrl) {
+    const express = require('express');
+    const app = express();
+    app.use(express.json());
+    // Internal CMS hook to trigger broadcast send (same process)
+    app.post('/internal/broadcast/:id', async (req, res) => {
+      const secret = req.headers['x-cms-secret'];
+      if (secret !== config.cmsSecret) return res.status(401).json({ error: 'unauthorized' });
+      try {
+        const result = await require('./services/broadcastService').sendBroadcast(bot, req.params.id);
+        res.json(result || { ok: true });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+    app.use(bot.webhookCallback(`/bot${config.botToken}`));
     await bot.telegram.setWebhook(`${config.webhookUrl}/bot${config.botToken}`);
-    logger.info('Webhook set');
+    app.listen(config.port, () => logger.info(`Webhook + internal API on :${config.port}`));
   } else {
     await bot.launch();
     logger.info('Bot started (polling)');
   }
 }
+
+// Export bot for potential programmatic use
+module.exports = { bot };
 
 launch().catch((e) => {
   logger.error('Failed to start', e);

@@ -36,6 +36,9 @@ async function play(telegramId, lines) {
   const user = await userService.getUser(telegramId);
   if (!user) throw new Error('User not found');
   if (user.is_banned) throw new Error('Account banned');
+  if (config.adminIds.includes(Number(telegramId))) {
+    throw new Error('Admin accounts cannot play');
+  }
   if (await userService.isSelfExcluded(user)) {
     throw new Error('You are currently self-excluded. Take a break.');
   }
