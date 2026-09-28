@@ -6,7 +6,7 @@ module.exports = {
       ['🎰 Play Lotto', '💰 Balance'],
       ['📥 Deposit', '📤 Withdraw'],
       ['📊 Activity', '👥 Referral'],
-      ['🛡️ Responsible Play', 'ℹ️ About'],
+      ['🛡️ Responsible Play', 'ℹ️ How to Play'],
       ['🆘 Support'],
     ]).resize(),
 

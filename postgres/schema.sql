@@ -1,4 +1,4 @@
--- LottoWin Instant 4/40 Schema
+-- LottoWin Instant 4/40 Schema (v2)
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -16,13 +16,21 @@ CREATE TABLE IF NOT EXISTS users (
   total_wagered   NUMERIC(18, 6) NOT NULL DEFAULT 0,
   total_won       NUMERIC(18, 6) NOT NULL DEFAULT 0,
   referral_code   TEXT UNIQUE,
-  referred_by     BIGINT REFERENCES users(telegram_id),
+  referred_by     BIGINT,
   welcome_bonus_claimed BOOLEAN DEFAULT FALSE,
   is_banned       BOOLEAN DEFAULT FALSE,
   ban_reason      TEXT,
   daily_limit_usd NUMERIC(18, 2) DEFAULT 50,
   session_limit_usd NUMERIC(18, 2) DEFAULT 20,
   self_excluded_until TIMESTAMPTZ,
+  -- Age & CAPTCHA gates
+  year_of_birth   INT,
+  age_verified_at TIMESTAMPTZ,
+  captcha_passed_at TIMESTAMPTZ,
+  -- Anti-abuse signals (Telegram does not expose client IP; we store what we can)
+  last_user_agent TEXT,
+  device_fingerprint TEXT,
+  risk_score      INT DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_active_at  TIMESTAMPTZ DEFAULT NOW()
@@ -30,16 +38,21 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_telegram ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_users_referral ON users(referral_code);
+CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);
 
 -- Tickets / plays
 CREATE TABLE IF NOT EXISTS tickets (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
-  lines           JSONB NOT NULL,          -- array of {numbers: [1,2,3,4], matches: N, prize: X}
+  lines           JSONB NOT NULL,
   cost_usd        NUMERIC(18, 6) NOT NULL,
   total_prize_usd NUMERIC(18, 6) NOT NULL DEFAULT 0,
-  winning_numbers INTEGER[] NOT NULL,     -- the 4 drawn numbers
-  status          TEXT NOT NULL DEFAULT 'completed', -- completed | refunded
+  prize_before_cap NUMERIC(18, 6) DEFAULT 0,
+  liability_capped BOOLEAN DEFAULT FALSE,
+  winning_numbers INTEGER[] NOT NULL,
+  rng_seed        TEXT,
+  rng_source      TEXT DEFAULT 'auto',  -- auto | manual_override
+  status          TEXT NOT NULL DEFAULT 'completed',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -49,17 +62,17 @@ CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at DESC);
 -- Deposits
 CREATE TABLE IF NOT EXISTS deposits (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
-  chain           TEXT NOT NULL,           -- trc20 | erc20 | btc | eth | trx
+  user_id         BIGINT NOT NULL DEFAULT 0,
+  chain           TEXT NOT NULL,
   tx_hash         TEXT UNIQUE,
   amount_crypto   NUMERIC(36, 18) NOT NULL,
   amount_usd      NUMERIC(18, 6) NOT NULL,
   rate_usd        NUMERIC(18, 8),
-  status          TEXT NOT NULL DEFAULT 'pending', -- pending | confirmed | failed
+  status          TEXT NOT NULL DEFAULT 'pending',
   confirmations   INT DEFAULT 0,
   detected_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   confirmed_at    TIMESTAMPTZ,
-  memo_or_tag     TEXT,                    -- for identifying user (optional)
+  memo_or_tag     TEXT,
   raw_data        JSONB
 );
 
@@ -77,7 +90,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   amount_crypto   NUMERIC(36, 18),
   rate_usd        NUMERIC(18, 8),
   fee_usd         NUMERIC(18, 6) DEFAULT 0,
-  status          TEXT NOT NULL DEFAULT 'pending', -- pending | approved | processing | completed | rejected
+  status          TEXT NOT NULL DEFAULT 'pending',
   tx_hash         TEXT,
   admin_note      TEXT,
   requested_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -91,10 +104,10 @@ CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
 CREATE TABLE IF NOT EXISTS transactions (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
-  type            TEXT NOT NULL, -- deposit | withdraw | play | win | bonus | referral | adjustment
+  type            TEXT NOT NULL,
   amount_usd      NUMERIC(18, 6) NOT NULL,
   balance_after   NUMERIC(18, 6) NOT NULL,
-  reference_id    UUID,                    -- ticket/deposit/withdrawal id
+  reference_id    UUID,
   meta            JSONB,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -108,15 +121,15 @@ CREATE TABLE IF NOT EXISTS referral_rewards (
   referrer_id     BIGINT NOT NULL REFERENCES users(telegram_id),
   referred_id     BIGINT NOT NULL REFERENCES users(telegram_id),
   amount_usd      NUMERIC(18, 6) NOT NULL,
-  reason          TEXT,                    -- signup | first_deposit | play_percent
+  reason          TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Audit log
 CREATE TABLE IF NOT EXISTS audit_logs (
   id              BIGSERIAL PRIMARY KEY,
-  actor_id        BIGINT,                  -- telegram_id or 0 for system
-  actor_type      TEXT NOT NULL DEFAULT 'user', -- user | admin | system
+  actor_id        BIGINT,
+  actor_type      TEXT NOT NULL DEFAULT 'user',
   action          TEXT NOT NULL,
   target_type     TEXT,
   target_id       TEXT,
@@ -127,7 +140,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 
--- Settings (key-value)
+-- Settings
 CREATE TABLE IF NOT EXISTS settings (
   key             TEXT PRIMARY KEY,
   value           JSONB NOT NULL,
@@ -140,7 +153,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
   subject         TEXT,
   message         TEXT NOT NULL,
-  status          TEXT DEFAULT 'open', -- open | replied | closed
+  status          TEXT DEFAULT 'open',
   admin_reply     TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -151,12 +164,15 @@ CREATE TABLE IF NOT EXISTS fraud_flags (
   id              BIGSERIAL PRIMARY KEY,
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
   reason          TEXT NOT NULL,
-  severity        TEXT DEFAULT 'medium', -- low | medium | high
+  severity        TEXT DEFAULT 'medium',
   resolved        BOOLEAN DEFAULT FALSE,
+  meta            JSONB,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Deposit addresses assigned to users (optional for memo-less chains)
+CREATE INDEX IF NOT EXISTS idx_fraud_user ON fraud_flags(user_id);
+
+-- User deposit addresses
 CREATE TABLE IF NOT EXISTS user_deposit_addresses (
   id              SERIAL PRIMARY KEY,
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
@@ -166,11 +182,71 @@ CREATE TABLE IF NOT EXISTS user_deposit_addresses (
   UNIQUE(user_id, chain)
 );
 
--- Session play tracking for responsible gaming
+-- Play sessions
 CREATE TABLE IF NOT EXISTS play_sessions (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
   started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   wagered_usd     NUMERIC(18, 6) DEFAULT 0,
   ended_at        TIMESTAMPTZ
+);
+
+-- Tax ledger (gaming tax on GGR)
+CREATE TABLE IF NOT EXISTS tax_ledger (
+  id              BIGSERIAL PRIMARY KEY,
+  period_date     DATE NOT NULL,              -- UTC day
+  gross_wagered   NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  gross_prizes    NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  ggr             NUMERIC(18, 6) NOT NULL DEFAULT 0,  -- wagered - prizes
+  tax_rate        NUMERIC(8, 4) NOT NULL,
+  tax_amount      NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  ticket_count    INT DEFAULT 0,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(period_date)
+);
+
+-- RNG audit / manual overrides
+CREATE TABLE IF NOT EXISTS rng_events (
+  id              BIGSERIAL PRIMARY KEY,
+  ticket_id       UUID,
+  source          TEXT NOT NULL,             -- auto | manual
+  seed            TEXT,
+  numbers         INTEGER[] NOT NULL,
+  admin_id        BIGINT,
+  note            TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Broadcast / push jobs
+CREATE TABLE IF NOT EXISTS broadcasts (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title           TEXT,
+  message         TEXT NOT NULL,
+  audience        TEXT DEFAULT 'all',        -- all | active | depositors
+  status          TEXT DEFAULT 'pending',    -- pending | sending | done | failed
+  sent_count      INT DEFAULT 0,
+  fail_count      INT DEFAULT 0,
+  created_by      BIGINT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at    TIMESTAMPTZ
+);
+
+-- Daily liability tracker
+CREATE TABLE IF NOT EXISTS daily_liability (
+  period_date     DATE PRIMARY KEY,
+  prizes_paid     NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  tickets         INT DEFAULT 0,
+  capped_count    INT DEFAULT 0,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Collusion / ring signals
+CREATE TABLE IF NOT EXISTS collusion_signals (
+  id              BIGSERIAL PRIMARY KEY,
+  user_ids        BIGINT[] NOT NULL,
+  signal_type     TEXT NOT NULL,             -- referral_ring | same_pattern | rapid_multi
+  score           INT DEFAULT 0,
+  details         JSONB,
+  resolved        BOOLEAN DEFAULT FALSE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

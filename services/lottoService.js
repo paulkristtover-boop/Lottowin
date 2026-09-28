@@ -1,32 +1,17 @@
 const { query, getClient } = require('../database');
 const config = require('../config');
 const userService = require('./userService');
+const rngService = require('./rngService');
+const liabilityService = require('./liabilityService');
+const taxService = require('./taxService');
+const fraudService = require('./fraudService');
 const { v4: uuidv4 } = require('uuid');
 
-/**
- * Draw 4 unique random numbers from 1-40
- */
-function drawWinningNumbers() {
-  const pool = Array.from({ length: 40 }, (_, i) => i + 1);
-  const result = [];
-  for (let i = 0; i < 4; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    result.push(pool.splice(idx, 1)[0]);
-  }
-  return result.sort((a, b) => a - b);
-}
-
-/**
- * Count matches between user numbers and winning numbers
- */
 function countMatches(userNums, winning) {
   const set = new Set(winning);
   return userNums.filter((n) => set.has(n)).length;
 }
 
-/**
- * Validate a single line: exactly 4 unique numbers 1-40
- */
 function validateLine(numbers) {
   if (!Array.isArray(numbers) || numbers.length !== 4) return false;
   const set = new Set(numbers);
@@ -34,23 +19,14 @@ function validateLine(numbers) {
   return numbers.every((n) => Number.isInteger(n) && n >= 1 && n <= 40);
 }
 
-/**
- * Quick pick one line
- */
 function quickPick() {
-  return drawWinningNumbers();
+  return rngService.drawAuto().numbers;
 }
 
-/**
- * Play multiple lines
- * @param {number} telegramId
- * @param {number[][]} lines - array of [n1,n2,n3,n4]
- */
 async function play(telegramId, lines) {
   if (!lines || lines.length === 0 || lines.length > config.maxLines) {
     throw new Error(`Choose between 1 and ${config.maxLines} lines`);
   }
-
   for (const line of lines) {
     if (!validateLine(line)) {
       throw new Error('Each line must contain exactly 4 unique numbers from 1 to 40');
@@ -63,41 +39,44 @@ async function play(telegramId, lines) {
   if (await userService.isSelfExcluded(user)) {
     throw new Error('You are currently self-excluded. Take a break.');
   }
+  if (!user.age_verified_at) {
+    throw new Error('Please verify your year of birth first (/start)');
+  }
+  if (!user.captcha_passed_at) {
+    throw new Error('Please complete verification first (/start)');
+  }
 
   const cost = lines.length * config.playCostUsd;
   if (Number(user.balance_usd) < cost) {
-    throw new Error(`Insufficient balance. Need $${cost.toFixed(2)}, have $${Number(user.balance_usd).toFixed(2)}`);
+    throw new Error(
+      `Insufficient balance. Need $${cost.toFixed(2)}, have $${Number(user.balance_usd).toFixed(2)}`
+    );
   }
 
-  // Daily / session limits (simple check)
   const todaySpent = await getTodayWagered(telegramId);
   if (todaySpent + cost > Number(user.daily_limit_usd || config.defaultDailyLimitUsd)) {
-    throw new Error(`Daily limit reached ($${user.daily_limit_usd}). Adjust limits in Responsible Gaming.`);
+    throw new Error(`Daily limit reached ($${user.daily_limit_usd}). Adjust in Responsible Gaming.`);
   }
 
-  const winningNumbers = drawWinningNumbers();
-  const results = [];
-  let totalPrize = 0;
+  await fraudService.runPrePlayChecks(telegramId);
 
-  for (const nums of lines) {
+  const draw = await rngService.getNextDraw();
+  const winningNumbers = draw.numbers;
+
+  const rawResults = lines.map((nums) => {
     const sorted = [...nums].sort((a, b) => a - b);
     const matches = countMatches(sorted, winningNumbers);
-    const multiplier = config.prizes[matches] || 0;
-    const prize = multiplier * config.playCostUsd;
-    totalPrize += prize;
-    results.push({
-      numbers: sorted,
-      matches,
-      prize,
-      multiplier,
-    });
-  }
+    return { numbers: sorted, matches, prize: 0 };
+  });
+
+  const graded = await liabilityService.applyTicketLiability(rawResults);
+  const totalPrize = graded.totalPrize;
+  const results = graded.lines;
 
   const client = await getClient();
   try {
     await client.query('BEGIN');
 
-    // Debit cost
     const debit = await client.query(
       `UPDATE users SET balance_usd = balance_usd - $1, total_wagered = total_wagered + $1, updated_at = NOW()
        WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
@@ -107,7 +86,6 @@ async function play(telegramId, lines) {
 
     let balanceAfter = Number(debit.rows[0].balance_usd);
 
-    // Credit winnings if any
     if (totalPrize > 0) {
       const credit = await client.query(
         `UPDATE users SET balance_usd = balance_usd + $1, total_won = total_won + $1, updated_at = NOW()
@@ -119,9 +97,20 @@ async function play(telegramId, lines) {
 
     const ticketId = uuidv4();
     await client.query(
-      `INSERT INTO tickets (id, user_id, lines, cost_usd, total_prize_usd, winning_numbers, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'completed')`,
-      [ticketId, telegramId, JSON.stringify(results), cost, totalPrize, winningNumbers]
+      `INSERT INTO tickets (id, user_id, lines, cost_usd, total_prize_usd, prize_before_cap, liability_capped, winning_numbers, rng_seed, rng_source, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'completed')`,
+      [
+        ticketId,
+        telegramId,
+        JSON.stringify(results),
+        cost,
+        totalPrize,
+        graded.prizeBeforeCap,
+        graded.liabilityCapped,
+        winningNumbers,
+        draw.seed,
+        draw.source,
+      ]
     );
 
     await client.query(
@@ -134,11 +123,16 @@ async function play(telegramId, lines) {
       await client.query(
         `INSERT INTO transactions (user_id, type, amount_usd, balance_after, reference_id, meta)
          VALUES ($1, 'win', $2, $3, $4, $5)`,
-        [telegramId, totalPrize, balanceAfter, ticketId, { matches: results.map((r) => r.matches) }]
+        [
+          telegramId,
+          totalPrize,
+          balanceAfter,
+          ticketId,
+          { matches: results.map((r) => r.matches), capped: graded.liabilityCapped },
+        ]
       );
     }
 
-    // Referral play percent (optional)
     if (user.referred_by && config.referralPercent > 0) {
       const refAmount = (cost * config.referralPercent) / 100;
       if (refAmount > 0) {
@@ -156,13 +150,21 @@ async function play(telegramId, lines) {
 
     await client.query('COMMIT');
 
+    await rngService.logRngForTicket(ticketId, draw);
+    await liabilityService.recordPrizesPaid(totalPrize, 1, graded.liabilityCapped);
+    await taxService.recordPlay(cost, totalPrize);
+    await fraudService.runPostPlayChecks(telegramId);
+
     return {
       ticketId,
       winningNumbers,
       results,
       cost,
       totalPrize,
+      prizeBeforeCap: graded.prizeBeforeCap,
+      liabilityCapped: graded.liabilityCapped,
       balanceAfter,
+      rngSource: draw.source,
     };
   } catch (e) {
     await client.query('ROLLBACK');
@@ -199,7 +201,6 @@ async function getStatement(telegramId, limit = 30) {
 }
 
 module.exports = {
-  drawWinningNumbers,
   countMatches,
   validateLine,
   quickPick,

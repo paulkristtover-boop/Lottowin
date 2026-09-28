@@ -10,8 +10,10 @@ const links = [
   { href: '/withdrawals', label: 'Withdrawals' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/treasury', label: 'Treasury' },
+  { href: '/tax', label: 'Tax Ledger' },
   { href: '/fraud', label: 'Fraud' },
-  { href: '/audit', label: 'Audit Log' },
+  { href: '/broadcast', label: 'Broadcast' },
+  { href: '/audit', label: 'Audit' },
   { href: '/support', label: 'Support' },
   { href: '/settings', label: 'Settings' },
 ];
@@ -20,7 +22,7 @@ export default function Sidebar() {
   const path = usePathname();
   return (
     <aside className="sidebar">
-      <h1>🎰 LottoWin</h1>
+      <h1>🎰 LottoWin CMS</h1>
       <nav>
         {links.map((l) => (
           <Link key={l.href} href={l.href} className={path === l.href ? 'active' : ''}>
@@ -28,7 +30,7 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
-      <form action="/api/auth/logout" method="POST" style={{ marginTop: '2rem' }}>
+      <form action="/api/auth/logout" method="POST" style={{ marginTop: '1.5rem' }}>
         <button type="submit" className="btn ghost" style={{ width: '100%' }}>
           Logout
         </button>

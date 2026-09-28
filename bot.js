@@ -66,7 +66,7 @@ bot.hears('📥 Deposit', userHandlers.deposit.showDeposit);
 bot.hears('📤 Withdraw', userHandlers.withdraw.showWithdraw);
 bot.hears('📊 Activity', userHandlers.activity);
 bot.hears('👥 Referral', userHandlers.referral);
-bot.hears('ℹ️ About', userHandlers.about);
+bot.hears(['ℹ️ About','ℹ️ How to Play'], userHandlers.about);
 bot.hears('🆘 Support', userHandlers.support.showSupport);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
 
@@ -104,6 +104,7 @@ bot.action('menu:main', async (ctx) => {
 bot.on('text', async (ctx) => {
   if (ctx.message.text.startsWith('/')) return;
 
+  if (await userHandlers.start.handleOnboardingText(ctx)) return;
   if (await userHandlers.deposit.handleClaimText(ctx)) return;
   if (await userHandlers.withdraw.handleWithdrawText(ctx)) return;
   if (await userHandlers.support.handleSupportText(ctx)) return;
@@ -122,6 +123,60 @@ bot.on('text', async (ctx) => {
     await require('./services/userService').setLimits(ctx.from.id, daily, session);
     return ctx.reply(`✅ ${type} limit set to $${val.toFixed(2)}`, mainMenu());
   }
+});
+
+
+// Admin: manual RNG override for next ticket
+bot.command('setdraw', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const parts = ctx.message.text.split(/\s+/).slice(1).map(Number);
+  if (parts.length !== 4 || parts.some((n) => isNaN(n))) {
+    return ctx.reply('Usage: /setdraw 1 5 12 33');
+  }
+  try {
+    require('./services/rngService').setPendingOverride(parts, ctx.from.id, 'telegram setdraw');
+    await ctx.reply(`Next draw override set: ${parts.sort((a,b)=>a-b).join(', ')} (expires in 5 min)`);
+  } catch (e) {
+    await ctx.reply(e.message);
+  }
+});
+
+bot.command('taxexport', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const tax = require('./services/taxService');
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const csv = await tax.exportCsv(from, to);
+  const sum = await tax.summary();
+  await ctx.replyWithDocument(
+    { source: Buffer.from(csv), filename: `tax-ledger-${from}-${to}.csv` },
+    { caption: `Tax summary: GGR $${Number(sum.ggr).toFixed(2)} | Tax $${Number(sum.tax).toFixed(2)}` }
+  );
+});
+
+bot.command('broadcast', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const msg = ctx.message.text.replace(/^\/broadcast\s*/, '').trim();
+  if (!msg) return ctx.reply('Usage: /broadcast Your message here');
+  const broadcastService = require('./services/broadcastService');
+  const id = await broadcastService.createBroadcast({
+    message: msg,
+    audience: 'all',
+    createdBy: ctx.from.id,
+  });
+  await ctx.reply(`Broadcast queued (${id}). Sending…`);
+  const result = await broadcastService.sendBroadcast(bot, id);
+  await ctx.reply(`Done. Sent: ${result.sent}, failed: ${result.fail}`);
+});
+
+bot.command('liability', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const li = require('./services/liabilityService');
+  const paid = await li.getTodayPrizesPaid();
+  const config = require('./config');
+  await ctx.reply(
+    `Today prizes paid: $${paid.toFixed(2)} / cap $${config.dailyLiabilityCapUsd}\nRemaining: $${Math.max(0, config.dailyLiabilityCapUsd - paid).toFixed(2)}`
+  );
 });
 
 bot.catch((err, ctx) => {

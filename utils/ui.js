@@ -5,7 +5,7 @@ function mainMenu() {
     ['🎰 Play Lotto', '💰 Balance'],
     ['📥 Deposit', '📤 Withdraw'],
     ['📊 Activity', '👥 Referral'],
-    ['🛡️ Responsible', 'ℹ️ About'],
+    ['🛡️ Responsible', 'ℹ️ How to Play'],
     ['🆘 Support'],
   ]).resize();
 }

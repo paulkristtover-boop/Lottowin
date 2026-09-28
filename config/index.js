@@ -12,7 +12,6 @@ module.exports = {
   adminIds: parseIds(process.env.ADMIN_IDS),
   databaseUrl: process.env.DATABASE_URL,
 
-  // Treasury addresses
   treasury: {
     usdtTrc20: process.env.USDT_TRC20_ADDRESS || '',
     usdtErc20: process.env.USDT_ERC20_ADDRESS || '',
@@ -21,12 +20,11 @@ module.exports = {
     trx: process.env.TRX_ADDRESS || '',
   },
 
-  // API keys
   trongridKey: process.env.TRONGRID_API_KEY || '',
   etherscanKey: process.env.ETHERSCAN_API_KEY || '',
   blockcypherToken: process.env.BLOCKCYPHER_TOKEN || '',
 
-  // Economy
+  // Economy (USD)
   minDepositUsd: parseFloat(process.env.MIN_DEPOSIT_USD || '1'),
   minWithdrawUsd: parseFloat(process.env.MIN_WITHDRAW_USD || '5'),
   playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.10'),
@@ -35,46 +33,73 @@ module.exports = {
   referralBonusUsd: parseFloat(process.env.REFERRAL_BONUS_USD || '0.25'),
   referralPercent: parseFloat(process.env.REFERRAL_PERCENT || '5'),
 
+  // Liability & risk (startup-safe)
+  maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '100'),      // hard cap per line
+  maxPrizePerTicketUsd: parseFloat(process.env.MAX_PRIZE_PER_TICKET_USD || '250'),  // hard cap per ticket
+  dailyLiabilityCapUsd: parseFloat(process.env.DAILY_LIABILITY_CAP_USD || '2000'),  // max prizes paid per UTC day
+  maxBalanceUsd: parseFloat(process.env.MAX_BALANCE_USD || '500'),                  // soft wallet cap
+
+  // Gaming tax (e.g. 11% of GGR)
+  gamingTaxRate: parseFloat(process.env.GAMING_TAX_RATE || '0.11'),
+
+  // Age gate
+  minAge: parseInt(process.env.MIN_AGE || '18', 10),
+
   // Responsible gaming defaults
   defaultDailyLimitUsd: parseFloat(process.env.DEFAULT_DAILY_LIMIT_USD || '50'),
   defaultSessionLimitUsd: parseFloat(process.env.DEFAULT_SESSION_LIMIT_USD || '20'),
   cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '5', 10),
 
-  // App
   nodeEnv: process.env.NODE_ENV || 'development',
   webhookUrl: process.env.WEBHOOK_URL || '',
   port: parseInt(process.env.PORT || '3000', 10),
   cmsSecret: process.env.CMS_SECRET || 'change-me',
   botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || 'LottoWinBot',
 
-  // Prize table (multipliers of stake per line)
-  // Matches → multiplier
-  prizes: {
-    4: 5000,   // 4 correct → 5000x ($500 on $0.10)
-    3: 50,     // 3 correct → 50x
-    2: 5,      // 2 correct → 5x
-    1: 0,      // 1 correct → nothing
+  /**
+   * Prize table — fixed USD amounts per line (stake $0.10).
+   * Converted from original Naira structure; Match 1 now pays.
+   * Tiered grader may reduce large wins if liability caps are hit.
+   */
+  prizesUsd: {
+    4: 100.0,   // Match 4 — top prize (capped; was conceptually ₦1M scale)
+    3: 5.0,     // Match 3
+    2: 0.5,     // Match 2
+    1: 0.15,    // Match 1 — consolation (as requested)
     0: 0,
   },
 
   // Channels / support
   supportUsername: process.env.SUPPORT_USERNAME || 'LottoWinSupport',
   channelLink: process.env.CHANNEL_LINK || 'https://t.me/LottoWinOfficial',
-  aboutText: `🎰 *Instant 4/40 Lottery*
 
-Pick 4 numbers from 1–40.
-Instant draw. Instant results.
+  howToPlayText: `🎰 *How to play Insta Win 4/40*
 
-*How to play*
-1. Deposit crypto
-2. Choose up to 10 lines
-3. Pick 4 numbers or Quick Pick
-4. Win instantly based on matches
+Insta Win 4/40 is an *instant* lottery — no waiting for a draw. Pick your 4 lucky numbers, place your bet, and find out if you've won immediately.
 
-*Prizes* (per $0.10 line)
-• 4 matches → $500
-• 3 matches → $5
-• 2 matches → $0.50
+*The Goal:* Match as many of your 4 numbers to the 4 winning numbers as you can. Even matching just *1* wins a prize!
 
-18+ only. Play responsibly.`,
+*1. Choose your numbers*
+Pick 4 lucky numbers from the grid of 1 to 40. You must select exactly 4 numbers. You can also use *Quick Pick* to have numbers chosen randomly.
+
+*2. Place your bet*
+Tap play to confirm. Stake is deducted from your balance. If balance is too low you will be prompted to top up.
+
+*3. See your result instantly*
+The 4 winning numbers are revealed right away. The more you match, the bigger your prize!
+
+*How much can I win?* (per $0.10 line)
+\`\`\`
+| Matched | Prize   |
+| ------- | ------- |
+| Match 4 | $100.00 |
+| Match 3 | $5.00   |
+| Match 2 | $0.50   |
+| Match 1 | $0.15   |
+\`\`\`
+
+🎁 Welcome bonus & referral rewards available.
+⚠️ 18+ only. Play responsibly. Set limits. Take time-outs.
+
+Good luck!`,
 };

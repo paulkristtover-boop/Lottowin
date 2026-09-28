@@ -127,7 +127,7 @@ async function confirmPlay(ctx) {
     text += `Winning numbers: *${formatNumbers(result.winningNumbers)}*\n\n`;
 
     result.results.forEach((r, i) => {
-      const emoji = r.matches === 4 ? '🏆' : r.matches === 3 ? '🎉' : r.matches === 2 ? '✨' : '•';
+      const emoji = r.matches === 4 ? '🏆' : r.matches === 3 ? '🎉' : r.matches === 2 ? '✨' : r.matches === 1 ? '🔸' : '•';
       text += `${emoji} Line ${i + 1}: ${formatNumbers(r.numbers)} → *${r.matches} match*`;
       if (r.prize > 0) text += ` → +${formatUsd(r.prize)}`;
       text += `\n`;
@@ -135,12 +135,13 @@ async function confirmPlay(ctx) {
 
     text += `\nCost: ${formatUsd(result.cost)}`;
     text += `\nWon: *${formatUsd(result.totalPrize)}*`;
+    if (result.liabilityCapped) text += `\n_Prize adjusted by liability protection_`;
     text += `\nNew balance: *${formatUsd(result.balanceAfter)}*`;
 
     if (result.totalPrize === 0) {
       text += `\n\nBetter luck next time! 🍀`;
     } else if (result.results.some((r) => r.matches === 4)) {
-      text += `\n\n🎊 *JACKPOT!* Congratulations!`;
+      text += `\n\n🎊 *TOP PRIZE!* Congratulations!`;
     }
 
     text += `\n\n⚠️ Play responsibly. 18+`;

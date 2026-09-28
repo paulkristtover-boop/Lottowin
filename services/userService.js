@@ -1,5 +1,4 @@
 const { query } = require('../database');
-const { v4: uuidv4 } = require('uuid');
 const config = require('../config');
 
 function generateReferralCode() {
@@ -9,10 +8,7 @@ function generateReferralCode() {
 async function findOrCreateUser(telegramUser, referredBy = null) {
   const { id, username, first_name, last_name, language_code } = telegramUser;
 
-  let res = await query(
-    `SELECT * FROM users WHERE telegram_id = $1`,
-    [id]
-  );
+  let res = await query(`SELECT * FROM users WHERE telegram_id = $1`, [id]);
 
   if (res.rows[0]) {
     await query(
@@ -21,17 +17,17 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
        WHERE telegram_id = $1`,
       [id, username || null, first_name || null, last_name || null, language_code || 'en']
     );
-    return res.rows[0];
+    return (await query(`SELECT * FROM users WHERE telegram_id = $1`, [id])).rows[0];
   }
 
   const referralCode = generateReferralCode();
   let referrerId = null;
 
   if (referredBy) {
-    const ref = await query(`SELECT telegram_id FROM users WHERE referral_code = $1 OR telegram_id = $2`, [
-      referredBy,
-      isNaN(Number(referredBy)) ? 0 : Number(referredBy),
-    ]);
+    const ref = await query(
+      `SELECT telegram_id FROM users WHERE referral_code = $1 OR telegram_id = $2`,
+      [referredBy, isNaN(Number(referredBy)) ? 0 : Number(referredBy)]
+    );
     if (ref.rows[0]) referrerId = ref.rows[0].telegram_id;
   }
 
@@ -39,36 +35,77 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
     `INSERT INTO users (telegram_id, username, first_name, last_name, language_code, referral_code, referred_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [id, username || null, first_name || null, last_name || null, language_code || 'en', referralCode, referrerId]
+    [
+      id,
+      username || null,
+      first_name || null,
+      last_name || null,
+      language_code || 'en',
+      referralCode,
+      referrerId,
+    ]
   );
 
-  const user = res.rows[0];
+  // Welcome + referral bonuses applied after age+captcha verification
+  return res.rows[0];
+}
 
-  // Welcome bonus
-  if (config.welcomeBonusUsd > 0 && !user.welcome_bonus_claimed) {
-    await creditBalance(id, config.welcomeBonusUsd, 'bonus', null, { reason: 'welcome' });
-    await query(`UPDATE users SET welcome_bonus_claimed = TRUE WHERE telegram_id = $1`, [id]);
+async function applyWelcomeIfEligible(telegramId) {
+  const user = await getUser(telegramId);
+  if (!user || user.welcome_bonus_claimed) return user;
+  if (!user.age_verified_at || !user.captcha_passed_at) return user;
+
+  if (config.welcomeBonusUsd > 0) {
+    await creditBalance(telegramId, config.welcomeBonusUsd, 'bonus', null, { reason: 'welcome' });
+    await query(`UPDATE users SET welcome_bonus_claimed = TRUE WHERE telegram_id = $1`, [telegramId]);
   }
 
-  // Referral signup bonus
-  if (referrerId && config.referralBonusUsd > 0) {
-    await creditBalance(referrerId, config.referralBonusUsd, 'referral', null, {
+  if (user.referred_by && config.referralBonusUsd > 0) {
+    await creditBalance(user.referred_by, config.referralBonusUsd, 'referral', null, {
       reason: 'signup',
-      referred: id,
+      referred: telegramId,
     });
     await query(
       `INSERT INTO referral_rewards (referrer_id, referred_id, amount_usd, reason)
        VALUES ($1, $2, $3, 'signup')`,
-      [referrerId, id, config.referralBonusUsd]
+      [user.referred_by, telegramId, config.referralBonusUsd]
     );
   }
 
-  return user;
+  return getUser(telegramId);
 }
 
 async function getUser(telegramId) {
   const res = await query(`SELECT * FROM users WHERE telegram_id = $1`, [telegramId]);
   return res.rows[0] || null;
+}
+
+async function setYearOfBirth(telegramId, year) {
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - year;
+  if (year < 1920 || year > currentYear - config.minAge) {
+    throw new Error(`You must be ${config.minAge}+ to play. Enter a valid year of birth.`);
+  }
+  await query(
+    `UPDATE users SET year_of_birth = $2, age_verified_at = NOW(), updated_at = NOW()
+     WHERE telegram_id = $1`,
+    [telegramId, year]
+  );
+  return age;
+}
+
+async function setCaptchaPassed(telegramId) {
+  await query(
+    `UPDATE users SET captcha_passed_at = NOW(), updated_at = NOW() WHERE telegram_id = $1`,
+    [telegramId]
+  );
+}
+
+async function needsOnboarding(user) {
+  if (!user) return true;
+  if (!user.age_verified_at) return true;
+  if (!user.captcha_passed_at) return true;
+  return false;
 }
 
 async function creditBalance(telegramId, amountUsd, type, referenceId = null, meta = {}) {
@@ -152,4 +189,8 @@ module.exports = {
   selfExclude,
   isSelfExcluded,
   generateReferralCode,
+  setYearOfBirth,
+  setCaptchaPassed,
+  needsOnboarding,
+  applyWelcomeIfEligible,
 };
