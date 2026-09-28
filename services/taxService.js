@@ -8,29 +8,44 @@ function todayUTC() {
 /**
  * Record wager + prize for gaming tax (GGR × tax rate).
  * GGR = gross wagered − prizes paid
+ *
+ * IMPORTANT: All arithmetic is done in JS. Never write `$1 - $2` in SQL
+ * with untyped params — Postgres raises:
+ *   operator is not unique: unknown - unknown
  */
 async function recordPlay(wageredUsd, prizesUsd) {
   const d = todayUTC();
-  const rate = config.gamingTaxRate;
+  const rate = Number(config.gamingTaxRate) || 0.11;
+  const wagered = Number(wageredUsd) || 0;
+  const prizes = Number(prizesUsd) || 0;
+  const ggr = wagered - prizes;
+  const tax = ggr * rate;
 
   await query(
-    `INSERT INTO tax_ledger (period_date, gross_wagered, gross_prizes, ggr, tax_rate, tax_amount, ticket_count, updated_at)
-     VALUES ($1, $2, $3, $2 - $3, $4, ($2 - $3) * $4, 1, NOW())
+    `INSERT INTO tax_ledger (
+       period_date, gross_wagered, gross_prizes, ggr, tax_rate, tax_amount, ticket_count, updated_at
+     ) VALUES (
+       $1::date, $2::numeric, $3::numeric, $4::numeric, $5::numeric, $6::numeric, 1, NOW()
+     )
      ON CONFLICT (period_date) DO UPDATE SET
-       gross_wagered = tax_ledger.gross_wagered + $2,
-       gross_prizes = tax_ledger.gross_prizes + $3,
-       ggr = (tax_ledger.gross_wagered + $2) - (tax_ledger.gross_prizes + $3),
-       tax_amount = ((tax_ledger.gross_wagered + $2) - (tax_ledger.gross_prizes + $3)) * $4,
-       ticket_count = tax_ledger.ticket_count + 1,
-       updated_at = NOW()`,
-    [d, wageredUsd, prizesUsd, rate]
+       gross_wagered = tax_ledger.gross_wagered + EXCLUDED.gross_wagered,
+       gross_prizes  = tax_ledger.gross_prizes  + EXCLUDED.gross_prizes,
+       ggr           = tax_ledger.gross_wagered + EXCLUDED.gross_wagered
+                     - (tax_ledger.gross_prizes  + EXCLUDED.gross_prizes),
+       tax_amount    = (
+                         tax_ledger.gross_wagered + EXCLUDED.gross_wagered
+                       - (tax_ledger.gross_prizes  + EXCLUDED.gross_prizes)
+                       ) * COALESCE(tax_ledger.tax_rate, EXCLUDED.tax_rate),
+       ticket_count  = tax_ledger.ticket_count + 1,
+       updated_at    = NOW()`,
+    [d, wagered, prizes, ggr, rate, tax]
   );
 }
 
 async function getLedger(fromDate, toDate) {
   const res = await query(
     `SELECT * FROM tax_ledger
-     WHERE period_date >= $1 AND period_date <= $2
+     WHERE period_date >= $1::date AND period_date <= $2::date
      ORDER BY period_date ASC`,
     [fromDate, toDate]
   );

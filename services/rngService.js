@@ -57,7 +57,7 @@ async function drawManual(numbers, adminId, note = '') {
 async function logRngForTicket(ticketId, draw) {
   await query(
     `INSERT INTO rng_events (ticket_id, source, seed, numbers)
-     VALUES ($1, $2, $3, $4)`,
+     VALUES ($1::uuid, $2::text, $3::text, $4::int[])`,
     [ticketId, draw.source, draw.seed, draw.numbers]
   );
 }

@@ -7,13 +7,17 @@ const { query } = require('../database');
  */
 
 async function flag(userId, reason, severity = 'medium', meta = {}) {
+  const bump = severity === 'high' ? 25 : severity === 'medium' ? 10 : 5;
   await query(
-    `INSERT INTO fraud_flags (user_id, reason, severity, meta) VALUES ($1, $2, $3, $4)`,
-    [userId, reason, severity, meta]
+    `INSERT INTO fraud_flags (user_id, reason, severity, meta)
+     VALUES ($1::bigint, $2, $3, $4::jsonb)`,
+    [userId, reason, severity, JSON.stringify(meta || {})]
   );
   await query(
-    `UPDATE users SET risk_score = LEAST(100, risk_score + $2) WHERE telegram_id = $1`,
-    [userId, severity === 'high' ? 25 : severity === 'medium' ? 10 : 5]
+    `UPDATE users
+     SET risk_score = LEAST(100, COALESCE(risk_score, 0) + $2::int)
+     WHERE telegram_id = $1::bigint`,
+    [userId, bump]
   );
 }
 
@@ -44,8 +48,8 @@ async function checkReferralRing(userId) {
     await flag(userId, 'referral_ring_suspect', 'high', { referrer: ref, count_24h: ring.rows[0].c });
     await query(
       `INSERT INTO collusion_signals (user_ids, signal_type, score, details)
-       VALUES (ARRAY[$1::bigint, $2::bigint], 'referral_ring', 70, $3)`,
-      [userId, ref, { count_24h: ring.rows[0].c }]
+       VALUES (ARRAY[$1::bigint, $2::bigint], 'referral_ring', 70, $3::jsonb)`,
+      [userId, ref, JSON.stringify({ count_24h: Number(ring.rows[0].c) })]
     );
     return true;
   }

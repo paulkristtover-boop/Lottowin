@@ -98,7 +98,10 @@ async function play(telegramId, lines) {
     const ticketId = uuidv4();
     await client.query(
       `INSERT INTO tickets (id, user_id, lines, cost_usd, total_prize_usd, prize_before_cap, liability_capped, winning_numbers, rng_seed, rng_source, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'completed')`,
+       VALUES (
+         $1::uuid, $2::bigint, $3::jsonb, $4::numeric, $5::numeric, $6::numeric, $7::boolean,
+         $8::int[], $9::text, $10::text, 'completed'
+       )`,
       [
         ticketId,
         telegramId,
@@ -150,10 +153,27 @@ async function play(telegramId, lines) {
 
     await client.query('COMMIT');
 
-    await rngService.logRngForTicket(ticketId, draw);
-    await liabilityService.recordPrizesPaid(totalPrize, 1, graded.liabilityCapped);
-    await taxService.recordPlay(cost, totalPrize);
-    await fraudService.runPostPlayChecks(telegramId);
+    // Bookkeeping after commit — must NOT fail the user-facing play result
+    try {
+      await rngService.logRngForTicket(ticketId, draw);
+    } catch (e) {
+      console.error('[play] rng log failed', e.message);
+    }
+    try {
+      await liabilityService.recordPrizesPaid(totalPrize, 1, graded.liabilityCapped);
+    } catch (e) {
+      console.error('[play] liability log failed', e.message);
+    }
+    try {
+      await taxService.recordPlay(cost, totalPrize);
+    } catch (e) {
+      console.error('[play] tax ledger failed', e.message);
+    }
+    try {
+      await fraudService.runPostPlayChecks(telegramId);
+    } catch (e) {
+      console.error('[play] fraud check failed', e.message);
+    }
 
     return {
       ticketId,

@@ -24,9 +24,12 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
   let referrerId = null;
 
   if (referredBy) {
+    const asNum = Number(referredBy);
     const ref = await query(
-      `SELECT telegram_id FROM users WHERE referral_code = $1 OR telegram_id = $2`,
-      [referredBy, isNaN(Number(referredBy)) ? 0 : Number(referredBy)]
+      `SELECT telegram_id FROM users
+       WHERE referral_code = $1
+          OR telegram_id = $2::bigint`,
+      [String(referredBy), Number.isFinite(asNum) ? asNum : 0]
     );
     if (ref.rows[0]) referrerId = ref.rows[0].telegram_id;
   }

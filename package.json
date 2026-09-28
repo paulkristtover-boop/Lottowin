@@ -13,15 +13,20 @@
     "node": ">=18"
   },
   "dependencies": {
-    "telegraf": "^4.16.3",
-    "pg": "^8.13.1",
-    "dotenv": "^16.4.5",
     "axios": "^1.7.7",
-    "node-cron": "^3.0.3",
-    "uuid": "^10.0.0",
     "bs58": "^6.0.0",
-    "tronweb": "^5.3.2"
+    "dotenv": "^16.4.5",
+    "node-cron": "^4.6.0",
+    "pg": "^8.13.1",
+    "telegraf": "^4.16.3",
+    "tronweb": "^5.3.2",
+    "uuid": "^14.0.2"
   },
-  "keywords": ["telegram", "lottery", "crypto", "bot"],
+  "keywords": [
+    "telegram",
+    "lottery",
+    "crypto",
+    "bot"
+  ],
   "license": "MIT"
 }
