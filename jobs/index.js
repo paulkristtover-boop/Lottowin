@@ -1,18 +1,37 @@
-const cron = require('node-cron');
-const blockchainChecker = require('../services/blockchainChecker');
+const cryptoPayment = require('../services/cryptoPaymentService');
 const logger = require('../utils/logger');
 
-function startJobs() {
-  // Check deposits every 3 minutes
-  cron.schedule('*/3 * * * *', async () => {
-    try {
-      await blockchainChecker.runDepositChecker();
-    } catch (e) {
-      logger.error('Deposit checker failed', e.message);
-    }
-  });
+let botRef = null;
+let timer = null;
 
-  logger.info('Background jobs started');
+/**
+ * Attach Telegraf instance so deposit credits can notify users.
+ */
+function setBot(bot) {
+  botRef = bot;
 }
 
-module.exports = { startJobs };
+function startJobs() {
+  if (timer) clearInterval(timer);
+
+  // Every 30 seconds — lightweight explorer polling
+  timer = setInterval(async () => {
+    try {
+      const result = await cryptoPayment.scanAndCredit(botRef);
+      if (result?.matched > 0) {
+        logger.info('Deposit scanner matched', result);
+      }
+    } catch (e) {
+      logger.error('Deposit scanner failed', e.message);
+    }
+  }, 30_000);
+
+  // First run shortly after boot
+  setTimeout(() => {
+    cryptoPayment.scanAndCredit(botRef).catch((e) => logger.error('Initial scan', e.message));
+  }, 5_000);
+
+  logger.info('Background jobs started (deposit scan every 30s)');
+}
+
+module.exports = { startJobs, setBot };

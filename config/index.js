@@ -8,19 +8,20 @@ const parseIds = (str) =>
     .map(Number);
 
 module.exports = {
-  botToken: process.env.BOT_TOKEN,
+  botToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
   adminIds: parseIds(process.env.ADMIN_IDS),
   databaseUrl: process.env.DATABASE_URL,
 
   treasury: {
-    usdtTrc20: process.env.USDT_TRC20_ADDRESS || '',
-    usdtErc20: process.env.USDT_ERC20_ADDRESS || '',
+    usdtTrc20: process.env.TRC20_MASTER_ADDRESS || process.env.USDT_TRC20_ADDRESS || '',
+    usdtErc20: process.env.ERC20_MASTER_ADDRESS || process.env.USDT_ERC20_ADDRESS || '',
     btc: process.env.BTC_ADDRESS || '',
     eth: process.env.ETH_ADDRESS || '',
     trx: process.env.TRX_ADDRESS || '',
   },
 
-  trongridKey: process.env.TRONGRID_API_KEY || '',
+  trongridKey: process.env.TRONGRID_API_KEY || process.env.TRONSCAN_API_KEY || '',
+  tronscanKey: process.env.TRONSCAN_API_KEY || '',
   etherscanKey: process.env.ETHERSCAN_API_KEY || '',
   blockcypherToken: process.env.BLOCKCYPHER_TOKEN || '',
 

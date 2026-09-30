@@ -8,7 +8,7 @@ const banCheck = require('./middleware/banCheck');
 const privateOnly = require('./middleware/privateOnly');
 const rateLimit = require('./middleware/rateLimit');
 const adminGuard = require('./middleware/adminGuard');
-const { startJobs } = require('./jobs');
+const { startJobs, setBot } = require('./jobs');
 const { mainMenu } = require('./utils/ui');
 const financeService = require('./services/financeService');
 const adminKb = require('./keyboards/admin');
@@ -49,6 +49,7 @@ bot.command('responsible', userHandlers.responsible.show);
 bot.command('admin', (ctx) => adminHandlers.showPanel(ctx));
 bot.command('stats', (ctx) => adminHandlers.stats(ctx));
 bot.command('pending', (ctx) => adminHandlers.listPendingWd(ctx));
+bot.command('pendingdep', (ctx) => adminHandlers.listPendingDeposits(ctx));
 bot.command('approve', async (ctx) => {
   if (!adminHandlers.isAdmin(ctx)) return;
   const parts = ctx.message.text.split(/\s+/);
@@ -123,9 +124,11 @@ bot.action('play:plus5', (ctx) => userHandlers.play.quickPick(ctx, 5));
 bot.action('play:confirm', userHandlers.play.confirmPlay);
 bot.action('play:cancel', userHandlers.play.cancelPlay);
 bot.action(/^num:/, userHandlers.play.handleNumber);
-bot.action('dep:usdt_trc20', (ctx) => userHandlers.deposit.showAddress(ctx, 'usdt_trc20'));
-bot.action('dep:usdt_erc20', (ctx) => userHandlers.deposit.showAddress(ctx, 'usdt_erc20'));
-bot.action('dep:claim', userHandlers.deposit.startClaim);
+bot.action('dep:trc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'trc20'));
+bot.action('dep:erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20'));
+bot.action('dep:usdt_trc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'trc20'));
+bot.action('dep:usdt_erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20'));
+bot.action('dep:status', (ctx) => userHandlers.deposit.showStatus(ctx));
 bot.action(/^wd:(.+)/, (ctx) => {
   userHandlers.withdraw.startWithdraw(ctx, ctx.match[1]);
 });
@@ -153,8 +156,8 @@ bot.on('text', async (ctx) => {
 
   if (await adminHandlers.handleAdminText(ctx, bot)) return;
   if (await userHandlers.start.handleOnboardingText(ctx)) return;
-  if (await userHandlers.deposit.handleClaimText(ctx)) return;
-  if (await userHandlers.withdraw.handleWithdrawText(ctx)) return;
+  if (await userHandlers.deposit.handleDepositText(ctx)) return;
+  if (await userHandlers.withdraw.handleWithdrawText(ctx, bot)) return;
   if (await userHandlers.support.handleSupportText(ctx)) return;
 
   if (ctx.session?.pendingLimit) {
@@ -182,6 +185,7 @@ bot.catch((err, ctx) => {
 });
 
 async function launch() {
+  setBot(bot);
   startJobs();
   if (config.webhookUrl) {
     const express = require('express');

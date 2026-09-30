@@ -41,17 +41,17 @@ function numberGrid(selected = []) {
 
 function depositMenu() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('USDT (TRC20)', 'dep:usdt_trc20')],
-    [Markup.button.callback('USDT (ERC20)', 'dep:usdt_erc20')],
-    [Markup.button.callback('Claim by TX Hash', 'dep:claim')],
+    [Markup.button.callback('USDT TRC-20 (Tron)', 'dep:trc20')],
+    [Markup.button.callback('USDT ERC-20 (Ethereum)', 'dep:erc20')],
+    [Markup.button.callback('📋 My pending deposit', 'dep:status')],
     [Markup.button.callback('« Back', 'menu:main')],
   ]);
 }
 
 function withdrawMenu() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('USDT TRC20', 'wd:usdt_trc20')],
-    [Markup.button.callback('USDT ERC20', 'wd:usdt_erc20')],
+    [Markup.button.callback('USDT TRC-20 (Tron)', 'wd:trc20')],
+    [Markup.button.callback('USDT ERC-20 (Ethereum)', 'wd:erc20')],
     [Markup.button.callback('« Back', 'menu:main')],
   ]);
 }

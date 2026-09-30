@@ -353,10 +353,26 @@ async function handleAdminCallback(ctx, bot) {
   return false;
 }
 
+
+async function listPendingDeposits(ctx) {
+  if (!requireAdmin(ctx)) return;
+  const cryptoPayment = require('../../services/cryptoPaymentService');
+  const list = cryptoPayment.listPending();
+  if (!list.length) return ctx.reply('No active pending deposits.', adminKb.main());
+  let text = '*Active pending deposits*\n\n';
+  for (const p of list.slice(0, 20)) {
+    const left = Math.max(0, Math.ceil((p.expiresAt - Date.now()) / 60000));
+    text += `User \`${p.userId}\` | ${p.network} | exact \`${p.exactAmount.toFixed(6)}\` | base $${p.baseAmount} | ${left}m left\n`;
+  }
+  await ctx.replyWithMarkdown(text, adminKb.main());
+}
+
+
 module.exports = {
   isAdmin,
   requireAdmin,
   showPanel,
+  listPendingDeposits,
   stats,
   listPendingWd,
   startBroadcast,

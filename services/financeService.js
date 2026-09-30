@@ -28,6 +28,9 @@ async function createWithdrawal(telegramId, chain, address, amountUsd) {
   const user = await userService.getUser(telegramId);
   if (!user) throw new Error('User not found');
   if (user.is_banned) throw new Error('Account banned');
+  if (config.adminIds.includes(Number(telegramId))) {
+    throw new Error('Admin accounts cannot withdraw');
+  }
   if (amountUsd < config.minWithdrawUsd) {
     throw new Error(`Minimum withdrawal is $${config.minWithdrawUsd}`);
   }
