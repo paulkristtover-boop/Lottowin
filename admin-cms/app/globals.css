@@ -200,3 +200,49 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
   .grid { grid-template-columns: 1fr 1fr; }
   .page-title { font-size: 1.1rem; }
 }
+
+/* Filters & pagination */
+.filter-bar { margin-bottom: 1rem; }
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+.filter-field label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.filter-field input,
+.filter-field select {
+  margin-bottom: 0;
+  width: 100%;
+}
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.filter-count {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+.page-info {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
