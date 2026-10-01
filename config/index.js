@@ -66,11 +66,41 @@ module.exports = {
    * Converted from original Naira structure; Match 1 now pays.
    * Tiered grader may reduce large wins if liability caps are hit.
    */
+  /**
+   * Multi-game catalogue. Naira→USD using platform scale (~₦10,000 ≈ $1),
+   * consistent with 4/40 Match-4 ₦1M → $100.
+   * 3/30: Match3 ₦100k→$10, Match2 ₦1.5k→$0.15, Match1 ₦100→$0.05 (floor for UX).
+   */
+  games: {
+    '4_40': {
+      id: '4_40',
+      name: 'Insta Win 4/40',
+      pick: 4,
+      from: 1,
+      to: 40,
+      playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.10'),
+      maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
+      prizesUsd: { 4: 100.0, 3: 5.0, 2: 0.5, 1: 0.15, 0: 0 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '100'),
+    },
+    '3_30': {
+      id: '3_30',
+      name: 'Insta Win 3/30',
+      pick: 3,
+      from: 1,
+      to: 30,
+      playCostUsd: parseFloat(process.env.PLAY_COST_3_30_USD || process.env.PLAY_COST_USD || '0.10'),
+      maxLines: parseInt(process.env.MAX_LINES_3_30 || '10', 10),
+      prizesUsd: { 3: 10.0, 2: 0.15, 1: 0.05, 0: 0 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || '10'),
+    },
+  },
+  // Legacy alias (4/40)
   prizesUsd: {
-    4: 100.0,   // Match 4 — top prize (capped; was conceptually ₦1M scale)
-    3: 5.0,     // Match 3
-    2: 0.5,     // Match 2
-    1: 0.15,    // Match 1 — consolation (as requested)
+    4: 100.0,
+    3: 5.0,
+    2: 0.5,
+    1: 0.15,
     0: 0,
   },
 

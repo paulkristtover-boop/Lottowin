@@ -1,15 +1,14 @@
 const lottoService = require('../../services/lottoService');
 const userService = require('../../services/userService');
 const config = require('../../config');
-const { playMenu, numberGrid, mainMenu } = require('../../utils/ui');
+const { playMenu, numberGrid, mainMenu, gamePicker } = require('../../utils/ui');
 const { formatUsd, formatNumbers } = require('../../utils/helpers');
 
-// In-memory session state (for production use Redis)
 const sessions = new Map();
 
 function getSession(userId) {
   if (!sessions.has(userId)) {
-    sessions.set(userId, { lines: [], current: [], step: 'idle' });
+    sessions.set(userId, { gameId: '4_40', lines: [], current: [], step: 'idle' });
   }
   return sessions.get(userId);
 }
@@ -18,15 +17,45 @@ function clearSession(userId) {
   sessions.delete(userId);
 }
 
+async function showGamePicker(ctx) {
+  const user = await userService.getUser(ctx.from.id);
+  const g440 = config.games['4_40'];
+  const g330 = config.games['3_30'];
+  const text =
+    `🎰 *Choose a game*\n\n` +
+    `*Insta Win 4/40*\n` +
+    `Pick 4 from 1–40 · ${formatUsd(g440.playCostUsd)}/line\n` +
+    `Match 4 → ${formatUsd(g440.prizesUsd[4])} · Match 3 → ${formatUsd(g440.prizesUsd[3])} · Match 2 → ${formatUsd(g440.prizesUsd[2])} · Match 1 → ${formatUsd(g440.prizesUsd[1])}\n\n` +
+    `*Insta Win 3/30*\n` +
+    `Pick 3 from 1–30 · ${formatUsd(g330.playCostUsd)}/line\n` +
+    `Match 3 → ${formatUsd(g330.prizesUsd[3])} · Match 2 → ${formatUsd(g330.prizesUsd[2])} · Match 1 → ${formatUsd(g330.prizesUsd[1])}\n\n` +
+    `Cash: *${formatUsd(user?.balance_usd || 0)}* · Free tickets: *${Number(user?.unlocked_tickets) || 0}*`;
+
+  await ctx.replyWithMarkdown(text, gamePicker());
+}
+
+async function selectGame(ctx, gameId) {
+  const s = getSession(ctx.from.id);
+  s.gameId = gameId;
+  s.lines = [];
+  s.current = [];
+  s.step = 'idle';
+  await ctx.answerCbQuery();
+  return showPlayScreen(ctx);
+}
+
 async function showPlayScreen(ctx) {
   const s = getSession(ctx.from.id);
+  const game = lottoService.getGame(s.gameId || '4_40');
   const user = await userService.getUser(ctx.from.id);
-  const cost = s.lines.length * config.playCostUsd;
+  const cost = s.lines.length * game.playCostUsd;
+  const free = Number(user?.unlocked_tickets) || 0;
 
-  let text = `🎰 *Build Your Ticket*\n\n`;
-  text += `Lines: *${s.lines.length}/${config.maxLines}*\n`;
-  text += `Cost: *${formatUsd(cost)}*\n`;
-  text += `Balance: *${formatUsd(user.balance_usd)}*\n\n`;
+  let text = `🎰 *${game.name}*\n\n`;
+  text += `Lines: *${s.lines.length}/${game.maxLines}*\n`;
+  text += `Cost: *${formatUsd(cost)}*`;
+  if (free > 0) text += ` _(up to ${Math.min(free, s.lines.length || game.maxLines)} free)_`;
+  text += `\nCash: *${formatUsd(user?.balance_usd || 0)}* · Free tickets: *${free}*\n\n`;
 
   if (s.lines.length === 0) {
     text += `_No lines yet. Add a line or use Quick Pick._\n`;
@@ -36,39 +65,41 @@ async function showPlayScreen(ctx) {
     });
   }
 
-  text += `\n*0 of 4 selected* for current line.`;
+  text += `\nPick *${game.pick}* numbers from ${game.from}–${game.to}.`;
 
   await ctx.replyWithMarkdown(text, playMenu());
 }
 
 async function startAddLine(ctx) {
   const s = getSession(ctx.from.id);
-  if (s.lines.length >= config.maxLines) {
-    return ctx.answerCbQuery(`Max ${config.maxLines} lines`);
+  const game = lottoService.getGame(s.gameId || '4_40');
+  if (s.lines.length >= game.maxLines) {
+    return ctx.answerCbQuery(`Max ${game.maxLines} lines`);
   }
   s.current = [];
   s.step = 'picking';
   await ctx.answerCbQuery();
   await ctx.replyWithMarkdown(
-    `Select *4 numbers* from 1–40\nCurrent: *0 of 4*`,
-    numberGrid([])
+    `Select *${game.pick}* numbers from ${game.from}–${game.to}\nCurrent: *0 of ${game.pick}*`,
+    numberGrid([], game)
   );
 }
 
 async function handleNumber(ctx) {
   const data = ctx.callbackQuery.data;
   const s = getSession(ctx.from.id);
+  const game = lottoService.getGame(s.gameId || '4_40');
   if (s.step !== 'picking') return ctx.answerCbQuery();
 
   if (data === 'num:clear') {
     s.current = [];
-    await ctx.editMessageReplyMarkup(numberGrid([]).reply_markup);
+    await ctx.editMessageReplyMarkup(numberGrid([], game).reply_markup);
     return ctx.answerCbQuery('Cleared');
   }
 
   if (data === 'num:done') {
-    if (s.current.length !== 4) {
-      return ctx.answerCbQuery('Select exactly 4 numbers');
+    if (s.current.length !== game.pick) {
+      return ctx.answerCbQuery(`Select exactly ${game.pick} numbers`);
     }
     s.lines.push([...s.current].sort((a, b) => a - b));
     s.current = [];
@@ -79,72 +110,52 @@ async function handleNumber(ctx) {
   }
 
   const n = parseInt(data.replace('num:', ''), 10);
-  if (isNaN(n) || n < 1 || n > 40) return ctx.answerCbQuery();
+  if (Number.isNaN(n) || n < game.from || n > game.to) return ctx.answerCbQuery();
 
-  const idx = s.current.indexOf(n);
-  if (idx >= 0) {
-    s.current.splice(idx, 1);
+  if (s.current.includes(n)) {
+    s.current = s.current.filter((x) => x !== n);
   } else {
-    if (s.current.length >= 4) {
-      return ctx.answerCbQuery('Already 4 numbers – tap Done or clear');
+    if (s.current.length >= game.pick) {
+      return ctx.answerCbQuery(`Max ${game.pick} numbers`);
     }
     s.current.push(n);
   }
 
-  const count = s.current.length;
-  await ctx.editMessageText(
-    `Select *4 numbers* from 1–40\nCurrent: *${count} of 4*\n${formatNumbers(s.current.sort((a,b)=>a-b))}`,
-    { parse_mode: 'Markdown', ...numberGrid(s.current) }
-  );
-  await ctx.answerCbQuery();
+  await ctx.editMessageReplyMarkup(numberGrid(s.current, game).reply_markup);
+  await ctx.answerCbQuery(`${s.current.length} of ${game.pick}`);
 }
 
 async function quickPick(ctx, count = 1) {
   const s = getSession(ctx.from.id);
-  const remaining = config.maxLines - s.lines.length;
-  const toAdd = Math.min(count, remaining);
-  if (toAdd <= 0) return ctx.answerCbQuery(`Max ${config.maxLines} lines`);
-
-  for (let i = 0; i < toAdd; i++) {
-    s.lines.push(lottoService.quickPick());
+  const game = lottoService.getGame(s.gameId || '4_40');
+  await ctx.answerCbQuery();
+  for (let i = 0; i < count; i++) {
+    if (s.lines.length >= game.maxLines) break;
+    s.lines.push(lottoService.quickPick(game));
   }
-  await ctx.answerCbQuery(`Added ${toAdd} Quick Pick line(s)`);
-  await showPlayScreen(ctx);
+  return showPlayScreen(ctx);
 }
 
 async function confirmPlay(ctx) {
   const s = getSession(ctx.from.id);
-  if (s.lines.length === 0) {
+  if (!s.lines.length) {
     return ctx.answerCbQuery('Add at least one line');
   }
-
+  await ctx.answerCbQuery();
   try {
-    await ctx.answerCbQuery('Drawing…');
-    const result = await lottoService.play(ctx.from.id, s.lines);
+    const result = await lottoService.play(ctx.from.id, s.lines, s.gameId || '4_40');
     clearSession(ctx.from.id);
 
-    let text = `🎲 *DRAW COMPLETE*\n\n`;
+    let text = `🎲 *${result.gameName || 'Result'}*\n\n`;
     text += `Winning numbers: *${formatNumbers(result.winningNumbers)}*\n\n`;
-
-    result.results.forEach((r, i) => {
-      const emoji = r.matches === 4 ? '🏆' : r.matches === 3 ? '🎉' : r.matches === 2 ? '✨' : r.matches === 1 ? '🔸' : '•';
-      text += `${emoji} Line ${i + 1}: ${formatNumbers(r.numbers)} → *${r.matches} match*`;
-      if (r.prize > 0) text += ` → +${formatUsd(r.prize)}`;
-      text += `\n`;
+    result.results.forEach((line, i) => {
+      text += `${i + 1}. ${formatNumbers(line.numbers)} → Match *${line.matches}* · ${formatUsd(line.prize)}\n`;
     });
-
-    text += `\nCost: ${formatUsd(result.cost)}`;
-    text += `\nWon: *${formatUsd(result.totalPrize)}*`;
-    if (result.liabilityCapped) text += `\n_Prize adjusted by liability protection_`;
-    text += `\nNew balance: *${formatUsd(result.balanceAfter)}*`;
-
-    if (result.totalPrize === 0) {
-      text += `\n\nBetter luck next time! 🍀`;
-    } else if (result.results.some((r) => r.matches === 4)) {
-      text += `\n\n🎊 *TOP PRIZE!* Congratulations!`;
-    }
-
-    text += `\n\n⚠️ Play responsibly. 18+`;
+    text += `\nStake: ${formatUsd(result.faceCost || result.cost)}`;
+    if (result.freeTicketsUsed) text += ` (${result.freeTicketsUsed} free)`;
+    text += `\nPrize: *${formatUsd(result.totalPrize)}*`;
+    if (result.liabilityCapped) text += `\n_Prize adjusted by pool protection._`;
+    text += `\nBalance: *${formatUsd(result.balanceAfter)}*`;
 
     await ctx.replyWithMarkdown(text, mainMenu());
   } catch (e) {
@@ -155,10 +166,12 @@ async function confirmPlay(ctx) {
 async function cancelPlay(ctx) {
   clearSession(ctx.from.id);
   await ctx.answerCbQuery('Cancelled');
-  await ctx.reply('Ticket cancelled.', mainMenu());
+  await ctx.reply('Play cancelled.', mainMenu());
 }
 
 module.exports = {
+  showGamePicker,
+  selectGame,
   showPlayScreen,
   startAddLine,
   handleNumber,

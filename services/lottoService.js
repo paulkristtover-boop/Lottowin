@@ -13,24 +13,45 @@ function countMatches(userNums, winning) {
   return userNums.filter((n) => set.has(n)).length;
 }
 
-function validateLine(numbers) {
-  if (!Array.isArray(numbers) || numbers.length !== 4) return false;
+function getGame(gameId) {
+  const g = (config.games && config.games[gameId]) || config.games?.['4_40'];
+  if (!g) {
+    // fallback legacy
+    return {
+      id: '4_40',
+      name: 'Insta Win 4/40',
+      pick: 4,
+      from: 1,
+      to: 40,
+      playCostUsd: config.playCostUsd,
+      maxLines: config.maxLines,
+      prizesUsd: config.prizesUsd,
+      maxPrizePerLineUsd: config.maxPrizePerLineUsd,
+    };
+  }
+  return g;
+}
+
+function validateLine(numbers, game) {
+  const pick = game.pick;
+  if (!Array.isArray(numbers) || numbers.length !== pick) return false;
   const set = new Set(numbers);
-  if (set.size !== 4) return false;
-  return numbers.every((n) => Number.isInteger(n) && n >= 1 && n <= 40);
+  if (set.size !== pick) return false;
+  return numbers.every((n) => Number.isInteger(n) && n >= game.from && n <= game.to);
 }
 
-function quickPick() {
-  return rngService.drawAuto().numbers;
+function quickPick(game) {
+  return rngService.drawAuto(game.pick, game.to).numbers;
 }
 
-async function play(telegramId, lines) {
-  if (!lines || lines.length === 0 || lines.length > config.maxLines) {
-    throw new Error(`Choose between 1 and ${config.maxLines} lines`);
+async function play(telegramId, lines, gameId = '4_40') {
+  const game = getGame(gameId);
+  if (!lines || lines.length === 0 || lines.length > game.maxLines) {
+    throw new Error(`Choose between 1 and ${game.maxLines} lines`);
   }
   for (const line of lines) {
-    if (!validateLine(line)) {
-      throw new Error('Each line must contain exactly 4 unique numbers from 1 to 40');
+    if (!validateLine(line, game)) {
+      throw new Error(`Each line must contain exactly ${game.pick} unique numbers from ${game.from} to ${game.to}`);
     }
   }
 
@@ -51,7 +72,7 @@ async function play(telegramId, lines) {
   }
 
   const lineCount = lines.length;
-  const cost = lineCount * config.playCostUsd;
+  const cost = lineCount * game.playCostUsd;
   const freeAvail = Number(user.unlocked_tickets) || 0;
   const freeUsed = Math.min(freeAvail, lineCount);
   const cashLines = lineCount - freeUsed;
@@ -74,7 +95,7 @@ async function play(telegramId, lines) {
   }
 
   // Hard reject if theoretical max payout (all Match 4) would exceed remaining daily liability
-  const maxLinePrize = Number(config.prizesUsd[4] || config.maxPrizePerLineUsd);
+  const maxLinePrize = Number(game.prizesUsd[game.pick] || game.maxPrizePerLineUsd);
   const theoreticalMax = Math.min(
     lineCount * maxLinePrize,
     Number(config.maxPrizePerTicketUsd)
@@ -89,7 +110,7 @@ async function play(telegramId, lines) {
 
   await fraudService.runPrePlayChecks(telegramId);
 
-  const draw = await rngService.getNextDraw();
+  const draw = await rngService.getNextDraw(game);
   const winningNumbers = draw.numbers;
 
   const rawResults = lines.map((nums) => {
@@ -98,7 +119,7 @@ async function play(telegramId, lines) {
     return { numbers: sorted, matches, prize: 0 };
   });
 
-  const graded = await liabilityService.applyTicketLiability(rawResults);
+  const graded = await liabilityService.applyTicketLiability(rawResults, game);
   const totalPrize = graded.totalPrize;
   const results = graded.lines;
 
@@ -117,7 +138,7 @@ async function play(telegramId, lines) {
     let freeNow = Number(urow.unlocked_tickets) || 0;
     const freeUse = Math.min(freeNow, lineCount);
     const cashUse = lineCount - freeUse;
-    const cashPay = cashUse * config.playCostUsd;
+    const cashPay = cashUse * game.playCostUsd;
 
     if (Number(urow.balance_usd) < cashPay) throw new Error('Insufficient balance');
 
@@ -165,7 +186,7 @@ async function play(telegramId, lines) {
       [
         ticketId,
         telegramId,
-        JSON.stringify(results),
+        JSON.stringify({ game: game.id, results }),
         cashPay,
         totalPrize,
         graded.prizeBeforeCap,
@@ -258,7 +279,9 @@ async function play(telegramId, lines) {
       winningNumbers,
       results,
       cost: cashPay,
-      faceCost: lineCount * config.playCostUsd,
+      faceCost: lineCount * game.playCostUsd,
+      gameId: game.id,
+      gameName: game.name,
       freeTicketsUsed: freeUse,
       cashLines: cashUse,
       totalPrize,
@@ -302,6 +325,9 @@ async function getStatement(telegramId, limit = 30) {
 }
 
 module.exports = {
+  getGame,
+  validateLine,
+  quickPick,
   countMatches,
   validateLine,
   quickPick,

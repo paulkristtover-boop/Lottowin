@@ -17,31 +17,34 @@ async function getTodayPrizesPaid() {
 /**
  * Tiered payout grader + liability caps.
  */
-function gradePayout(matches) {
-  const base = Number(config.prizesUsd[matches] ?? 0);
+function gradePayout(matches, game) {
+  const prizes = (game && game.prizesUsd) || config.prizesUsd;
+  const maxLine = Number((game && game.maxPrizePerLineUsd) || config.maxPrizePerLineUsd);
+  const base = Number(prizes[matches] ?? 0);
   let prize = base;
   let tier = `match_${matches}`;
 
-  if (prize > Number(config.maxPrizePerLineUsd)) {
-    prize = Number(config.maxPrizePerLineUsd);
+  if (prize > maxLine) {
+    prize = maxLine;
     tier = 'line_capped';
   }
 
   return { prize, beforeCap: base, tier };
 }
 
-async function applyTicketLiability(lineResults) {
+async function applyTicketLiability(lineResults, game) {
   let totalBefore = 0;
   let anyCapped = false;
+  const maxTicket = Number(config.maxPrizePerTicketUsd);
 
   const graded = lineResults.map((r) => {
-    const g = gradePayout(r.matches);
+    const g = gradePayout(r.matches, game);
     totalBefore += g.beforeCap;
     return { ...r, prize: g.prize, beforeCap: g.beforeCap, tier: g.tier };
   });
 
-  if (totalBefore > Number(config.maxPrizePerTicketUsd)) {
-    const scale = Number(config.maxPrizePerTicketUsd) / totalBefore;
+  if (totalBefore > maxTicket) {
+    const scale = maxTicket / totalBefore;
     for (const g of graded) {
       g.prize = Math.round(g.prize * scale * 100) / 100;
     }

@@ -7,6 +7,8 @@ import ThemeToggle from './ThemeToggle';
 const links = [
   { href: '/', label: 'Dashboard' },
   { href: '/users', label: 'Users' },
+  { href: '/tickets', label: 'Tickets / Plays' },
+  { href: '/bonuses', label: 'Free Tickets' },
   { href: '/deposits', label: 'Deposits' },
   { href: '/withdrawals', label: 'Withdrawals' },
   { href: '/transactions', label: 'Transactions' },

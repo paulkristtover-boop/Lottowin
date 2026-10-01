@@ -8,9 +8,8 @@ const cryptoPayment = require('../../services/cryptoPaymentService');
 function walletKeyboard(user) {
   const min = Number(config.minDepositUsd);
   const play = Number(config.playCostUsd);
-  const welcome = Number(config.welcomeFreeTickets) || 5;
   const locked = Number(user.locked_tickets) || 0;
-  const firstDone = user.is_first_deposit_completed;
+  const firstDone = !!user.is_first_deposit_completed;
 
   const rows = [];
   if (!firstDone && locked > 0) {
@@ -42,56 +41,58 @@ function walletKeyboard(user) {
 }
 
 async function showWallet(ctx) {
-  const user = await userService.getUser(ctx.from.id);
-  if (!user) return ctx.reply('Please /start first');
+  try {
+    const user = await userService.getUser(ctx.from.id);
+    if (!user) return ctx.reply('Please /start first');
 
-  const locked = Number(user.locked_tickets) || 0;
-  const unlocked = Number(user.unlocked_tickets) || 0;
-  const welcome = Number(config.welcomeFreeTickets) || 5;
-  const firstDone = !!user.is_first_deposit_completed;
+    const locked = Number(user.locked_tickets) || 0;
+    const unlocked = Number(user.unlocked_tickets) || 0;
+    const welcome = Number(config.welcomeFreeTickets) || 5;
+    const firstDone = !!user.is_first_deposit_completed;
 
-  let progress = '';
-  if (!firstDone && user.welcome_tickets_granted) {
-    const bar = ticketCreditService.progressBar(0, 1, 10);
-    progress =
-      `\n🎫 *Free Welcome Tickets*\n` +
-      `${bar} 0/1 deposit\n` +
-      `Deposit ≥ ${formatUsd(config.minDepositUsd)} to unlock *${locked || welcome}* free tickets.\n`;
-  } else if (firstDone) {
-    progress =
-      `\n🎫 Free tickets unlocked: *${unlocked}*\n` +
-      (locked > 0 ? `Still locked: ${locked}\n` : '');
-  } else {
-    progress = `\nComplete age & CAPTCHA verification to receive locked welcome tickets.\n`;
+    let progress = '';
+    if (!firstDone && user.welcome_tickets_granted) {
+      const bar = ticketCreditService.progressBar(0, 1, 10);
+      progress =
+        `\n🎫 *Free Welcome Tickets*\n` +
+        `${bar} 0/1 deposit\n` +
+        `Deposit ≥ ${formatUsd(config.minDepositUsd)} to unlock *${locked || welcome}* free tickets.\n`;
+    } else if (firstDone) {
+      progress =
+        `\n🎫 Free tickets unlocked: *${unlocked}*\n` +
+        (locked > 0 ? `Still locked: ${locked}\n` : '');
+    } else {
+      progress = `\nComplete age & CAPTCHA verification to receive locked welcome tickets.\n`;
+    }
+
+    const text =
+      `👛 *Wallet*\n\n` +
+      `Cash balance: *${formatUsd(user.balance_usd)}*\n` +
+      `Unlocked free tickets: *${unlocked}*\n` +
+      `Locked free tickets: *${locked}*\n` +
+      progress +
+      `\nPlay cost: ${formatUsd(config.playCostUsd)} / line\n` +
+      `Min deposit: ${formatUsd(config.minDepositUsd)} · Min withdraw: ${formatUsd(config.minWithdrawUsd)}\n\n` +
+      `_Free tickets are used first. Only real cash is withdrawable._`;
+
+    await ctx.replyWithMarkdown(text, walletKeyboard(user));
+  } catch (e) {
+    console.error('wallet', e);
+    await ctx.reply('❌ Wallet error: ' + (e.message || 'try again. Run DB migrate if columns missing.'));
   }
-
-  const text =
-    `👛 *Wallet*\n\n` +
-    `Cash balance: *${formatUsd(user.balance_usd)}*\n` +
-    `Unlocked free tickets: *${unlocked}*\n` +
-    `Locked free tickets: *${locked}*\n` +
-    progress +
-    `\nPlay cost: ${formatUsd(config.playCostUsd)} / line\n` +
-    `Min deposit: ${formatUsd(config.minDepositUsd)} · Min withdraw: ${formatUsd(config.minWithdrawUsd)}\n\n` +
-    `_Free tickets are used first. Cash deposits never withdrawable as bonus — only real balance._`;
-
-  await ctx.replyWithMarkdown(text, walletKeyboard(user));
 }
 
-/**
- * Quick deposit amount → start amount flow with prefilled network choice later
- */
 async function handleQuickDeposit(ctx, amount) {
   const amt = parseFloat(amount);
   if (!Number.isFinite(amt) || amt < config.minDepositUsd) {
-    await ctx.answerCbQuery('Invalid amount');
+    try {
+      await ctx.answerCbQuery('Invalid amount');
+    } catch (_) {}
     return;
   }
-  await ctx.answerCbQuery();
-  // Ask network then create pending with known base amount
-  const deposit = require('./deposit');
-  // Store pending amount in deposit flow via a custom state
-  deposit.depositFlow.set(ctx.from.id, { step: 'network_for_amount', amount: amt });
+  try {
+    await ctx.answerCbQuery();
+  } catch (_) {}
   await ctx.replyWithMarkdown(
     `Deposit *${formatUsd(amt)}*\n\nChoose network:`,
     Markup.inlineKeyboard([
@@ -104,7 +105,9 @@ async function handleQuickDeposit(ctx, amount) {
 
 async function handleNetAmount(ctx, network, amount) {
   const amt = parseFloat(amount);
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (_) {}
   try {
     const pending = cryptoPayment.createPendingDeposit(ctx.from.id, network, amt);
     const netHuman = pending.network === 'erc20' ? 'ERC-20 (Ethereum)' : 'TRC-20 (Tron)';
@@ -113,7 +116,7 @@ async function handleNetAmount(ctx, network, amount) {
     const locked = Number(user?.locked_tickets) || 0;
     const unlockNote =
       !user?.is_first_deposit_completed && locked > 0
-        ? `\n\n🎫 After this deposit confirms, *${locked} free tickets* unlock automatically.`
+        ? `\n\n🎫 After confirm, *${locked} free tickets* unlock automatically.`
         : '';
 
     const msg =

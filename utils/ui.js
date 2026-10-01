@@ -19,24 +19,35 @@ function playMenu() {
   ]);
 }
 
-function numberGrid(selected = []) {
+function numberGrid(selected = [], game = { pick: 4, from: 1, to: 40 }) {
   const sel = new Set(selected);
+  const pick = game.pick || 4;
+  const max = game.to || 40;
   const rows = [];
-  for (let r = 0; r < 8; r++) {
+  const cols = 5;
+  for (let n = 1; n <= max; n += cols) {
     const row = [];
-    for (let c = 0; c < 5; c++) {
-      const n = r * 5 + c + 1;
-      if (n > 40) break;
-      const label = sel.has(n) ? `✅${n}` : `${n}`;
-      row.push(Markup.button.callback(label, `num:${n}`));
+    for (let c = 0; c < cols; c++) {
+      const num = n + c;
+      if (num > max) break;
+      const label = sel.has(num) ? `✅${num}` : `${num}`;
+      row.push(Markup.button.callback(label, `num:${num}`));
     }
     rows.push(row);
   }
   rows.push([
-    Markup.button.callback(`Clear (${selected.length}/4)`, 'num:clear'),
+    Markup.button.callback(`Clear (${selected.length}/${pick})`, 'num:clear'),
     Markup.button.callback('Done ✓', 'num:done'),
   ]);
   return Markup.inlineKeyboard(rows);
+}
+
+function gamePicker() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('🎯 Insta Win 4/40', 'game:4_40')],
+    [Markup.button.callback('🎲 Insta Win 3/30', 'game:3_30')],
+    [Markup.button.callback('« Back', 'menu:main')],
+  ]);
 }
 
 function depositMenu() {
@@ -70,6 +81,7 @@ module.exports = {
   mainMenu,
   playMenu,
   numberGrid,
+  gamePicker,
   depositMenu,
   withdrawMenu,
   responsibleMenu,

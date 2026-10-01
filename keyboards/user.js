@@ -3,12 +3,11 @@ const { Markup } = require('telegraf');
 module.exports = {
   main: () =>
     Markup.keyboard([
-      ['🎰 Play Lotto', '💰 Balance'],
+      ['🎰 Play Lotto', '👛 Wallet'],
       ['📥 Deposit', '📤 Withdraw'],
-      ['📊 Activity', '👥 Referral'],
-      ['🛡️ Responsible Play', 'ℹ️ How to Play'],
-      ['🆘 Support'],
+      ['💰 Balance', '👥 Referral'],
+      ['📊 Activity', '🛡️ Responsible'],
+      ['ℹ️ How to Play', '🆘 Support'],
     ]).resize(),
-
   remove: () => Markup.removeKeyboard(),
 };

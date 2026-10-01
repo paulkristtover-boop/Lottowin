@@ -1,20 +1,15 @@
 const crypto = require('crypto');
 const { query } = require('../database');
 
-/**
- * Cryptographically stronger draw than Math.random.
- * Returns { numbers, seed, source }
- */
-function drawAuto() {
+function drawAuto(pick = 4, poolSize = 40) {
   const seed = crypto.randomBytes(16).toString('hex');
-  const pool = Array.from({ length: 40 }, (_, i) => i + 1);
+  const pool = Array.from({ length: poolSize }, (_, i) => i + 1);
   const result = [];
   let entropy = crypto.createHash('sha256').update(seed).digest();
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < pick; i++) {
     const idx = entropy[i % entropy.length] % pool.length;
     result.push(pool.splice(idx, 1)[0]);
-    // remix entropy
     entropy = crypto.createHash('sha256').update(Buffer.concat([entropy, Buffer.from([i])])).digest();
   }
 
@@ -25,33 +20,41 @@ function drawAuto() {
   };
 }
 
-/**
- * Manual override by admin — audited.
- */
-async function drawManual(numbers, adminId, note = '') {
-  if (!Array.isArray(numbers) || numbers.length !== 4) {
-    throw new Error('Manual draw requires exactly 4 numbers');
+let pendingOverride = null; // { numbers, adminId, note, expires, pick }
+
+function setPendingOverride(numbers, adminId, note = '') {
+  if (!Array.isArray(numbers) || numbers.length < 3) {
+    throw new Error('Override requires the correct count of numbers for the game');
   }
-  const set = new Set(numbers);
-  if (set.size !== 4 || numbers.some((n) => n < 1 || n > 40 || !Number.isInteger(n))) {
-    throw new Error('Invalid manual numbers');
+  const sorted = [...numbers].map(Number).sort((a, b) => a - b);
+  pendingOverride = {
+    numbers: sorted,
+    adminId,
+    note,
+    pick: sorted.length,
+    expires: Date.now() + 5 * 60 * 1000,
+  };
+}
+
+async function getNextDraw(game) {
+  const pick = game?.pick || 4;
+  const poolSize = game?.to || 40;
+
+  if (
+    pendingOverride &&
+    pendingOverride.expires > Date.now() &&
+    pendingOverride.pick === pick
+  ) {
+    const o = pendingOverride;
+    pendingOverride = null;
+    return {
+      numbers: o.numbers,
+      seed: `manual:${o.adminId}:${Date.now()}`,
+      source: 'manual',
+    };
   }
-  const sorted = [...numbers].sort((a, b) => a - b);
-  const seed = `manual:${adminId}:${Date.now()}`;
 
-  await query(
-    `INSERT INTO rng_events (source, seed, numbers, admin_id, note)
-     VALUES ('manual', $1, $2, $3, $4)`,
-    [seed, sorted, adminId, note]
-  );
-
-  await query(
-    `INSERT INTO audit_logs (actor_id, actor_type, action, target_type, details)
-     VALUES ($1, 'admin', 'manual_draw', 'rng', $2)`,
-    [adminId, { numbers: sorted, note }]
-  );
-
-  return { numbers: sorted, seed, source: 'manual' };
+  return drawAuto(pick, poolSize);
 }
 
 async function logRngForTicket(ticketId, draw) {
@@ -59,41 +62,12 @@ async function logRngForTicket(ticketId, draw) {
     `INSERT INTO rng_events (ticket_id, source, seed, numbers)
      VALUES ($1::uuid, $2::text, $3::text, $4::int[])`,
     [ticketId, draw.source, draw.seed, draw.numbers]
-  );
-}
-
-/** Pending manual override for next play (admin sets, consumed once) */
-let pendingOverride = null;
-
-function setPendingOverride(numbers, adminId, note) {
-  pendingOverride = { numbers, adminId, note, setAt: Date.now() };
-}
-
-function consumePendingOverride() {
-  if (!pendingOverride) return null;
-  // expire after 5 minutes
-  if (Date.now() - pendingOverride.setAt > 5 * 60 * 1000) {
-    pendingOverride = null;
-    return null;
-  }
-  const o = pendingOverride;
-  pendingOverride = null;
-  return o;
-}
-
-async function getNextDraw(adminIdForManual = null) {
-  const pending = consumePendingOverride();
-  if (pending) {
-    return drawManual(pending.numbers, pending.adminId, pending.note);
-  }
-  return drawAuto();
+  ).catch(() => {});
 }
 
 module.exports = {
   drawAuto,
-  drawManual,
-  logRngForTicket,
-  setPendingOverride,
-  consumePendingOverride,
   getNextDraw,
+  setPendingOverride,
+  logRngForTicket,
 };

@@ -37,7 +37,7 @@ bot.start(async (ctx) => {
 // ─── User commands (admins blocked by adminGuard for non-admin paths) ───
 bot.command('balance', userHandlers.balance);
 bot.command('wallet', (ctx) => userHandlers.wallet.showWallet(ctx));
-bot.command('play', (ctx) => userHandlers.play.showPlayScreen(ctx));
+bot.command('play', (ctx) => userHandlers.play.showGamePicker(ctx));
 bot.command('deposit', userHandlers.deposit.showDeposit);
 bot.command('withdraw', userHandlers.withdraw.showWithdraw);
 bot.command('activity', userHandlers.activity);
@@ -96,7 +96,8 @@ bot.command('liability', (ctx) => adminHandlers.liability(ctx));
 bot.command('tickets', (ctx) => adminHandlers.listSupport(ctx));
 
 // ─── User text menu ───
-bot.hears('🎰 Play Lotto', (ctx) => userHandlers.play.showPlayScreen(ctx));
+bot.hears('🎰 Play Lotto', (ctx) => userHandlers.play.showGamePicker(ctx));
+bot.hears(['👛 Wallet', 'Wallet'], (ctx) => userHandlers.wallet.showWallet(ctx));
 bot.hears('💰 Balance', userHandlers.balance);
 bot.hears('📥 Deposit', userHandlers.deposit.showDeposit);
 bot.hears('📤 Withdraw', userHandlers.withdraw.showWithdraw);
@@ -118,6 +119,8 @@ bot.hears('📊 Tax Export', (ctx) => adminHandlers.taxExport(ctx));
 bot.hears('🔒 Admin Panel', (ctx) => adminHandlers.showPanel(ctx));
 
 // ─── User callbacks ───
+bot.action('game:4_40', (ctx) => userHandlers.play.selectGame(ctx, '4_40'));
+bot.action('game:3_30', (ctx) => userHandlers.play.selectGame(ctx, '3_30'));
 bot.action('play:add', userHandlers.play.startAddLine);
 bot.action('play:qp', (ctx) => userHandlers.play.quickPick(ctx, 1));
 bot.action('play:plus3', (ctx) => userHandlers.play.quickPick(ctx, 3));
