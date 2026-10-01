@@ -27,12 +27,15 @@ module.exports = {
 
   // Economy (USD)
   minDepositUsd: parseFloat(process.env.MIN_DEPOSIT_USD || '1'),
-  minWithdrawUsd: parseFloat(process.env.MIN_WITHDRAW_USD || '5'),
+  minWithdrawUsd: parseFloat(process.env.MIN_WITHDRAW_USD || '2'),
   playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.10'),
   maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
-  welcomeBonusUsd: parseFloat(process.env.WELCOME_BONUS_USD || '0.50'),
-  referralBonusUsd: parseFloat(process.env.REFERRAL_BONUS_USD || '0.25'),
-  referralPercent: parseFloat(process.env.REFERRAL_PERCENT || '5'),
+  // Free tickets (cash bonuses disabled)
+  welcomeBonusUsd: 0,
+  referralBonusUsd: 0,
+  welcomeFreeTickets: parseInt(process.env.WELCOME_FREE_TICKETS || '5', 10),
+  referralFreeTickets: parseInt(process.env.REFERRAL_FREE_TICKETS || '3', 10),
+  referralPercent: parseFloat(process.env.REFERRAL_COMMISSION_PERCENT || process.env.REFERRAL_PERCENT || '5'),
 
   // Liability & risk (startup-safe)
   maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '100'),      // hard cap per line
@@ -49,6 +52,7 @@ module.exports = {
   // Responsible gaming defaults
   defaultDailyLimitUsd: parseFloat(process.env.DEFAULT_DAILY_LIMIT_USD || '50'),
   defaultSessionLimitUsd: parseFloat(process.env.DEFAULT_SESSION_LIMIT_USD || '20'),
+  defaultSessionLimitMins: parseInt(process.env.DEFAULT_SESSION_LIMIT_MINS || '20', 10),
   cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '5', 10),
 
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -99,7 +103,8 @@ The 4 winning numbers are revealed right away. The more you match, the bigger yo
 | Match 1 | $0.15   |
 \`\`\`
 
-🎁 Welcome bonus & referral rewards available.
+🎁 5 free tickets unlock after your first $1+ deposit.
+👥 Refer friends — unlock free tickets + 5% commission.
 ⚠️ 18+ only. Play responsibly. Set limits. Take time-outs.
 
 Good luck!`,

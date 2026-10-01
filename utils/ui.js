@@ -2,11 +2,11 @@ const { Markup } = require('telegraf');
 
 function mainMenu() {
   return Markup.keyboard([
-    ['🎰 Play Lotto', '💰 Balance'],
+    ['🎰 Play Lotto', '👛 Wallet'],
     ['📥 Deposit', '📤 Withdraw'],
-    ['📊 Activity', '👥 Referral'],
-    ['🛡️ Responsible', 'ℹ️ How to Play'],
-    ['🆘 Support'],
+    ['💰 Balance', '👥 Referral'],
+    ['📊 Activity', '🛡️ Responsible'],
+    ['ℹ️ How to Play', '🆘 Support'],
   ]).resize();
 }
 

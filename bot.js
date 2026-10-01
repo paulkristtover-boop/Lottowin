@@ -36,6 +36,7 @@ bot.start(async (ctx) => {
 
 // ─── User commands (admins blocked by adminGuard for non-admin paths) ───
 bot.command('balance', userHandlers.balance);
+bot.command('wallet', (ctx) => userHandlers.wallet.showWallet(ctx));
 bot.command('play', (ctx) => userHandlers.play.showPlayScreen(ctx));
 bot.command('deposit', userHandlers.deposit.showDeposit);
 bot.command('withdraw', userHandlers.withdraw.showWithdraw);
@@ -129,6 +130,10 @@ bot.action('dep:erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20')
 bot.action('dep:usdt_trc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'trc20'));
 bot.action('dep:usdt_erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20'));
 bot.action('dep:status', (ctx) => userHandlers.deposit.showStatus(ctx));
+bot.action(/^dep:quick:(.+)$/, (ctx) => userHandlers.wallet.handleQuickDeposit(ctx, ctx.match[1]));
+bot.action(/^dep:net:(trc20|erc20):(.+)$/, (ctx) =>
+  userHandlers.wallet.handleNetAmount(ctx, ctx.match[1], ctx.match[2])
+);
 bot.action(/^wd:(.+)/, (ctx) => {
   userHandlers.withdraw.startWithdraw(ctx, ctx.match[1]);
 });

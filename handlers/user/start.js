@@ -39,7 +39,7 @@ module.exports = async (ctx) => {
     `Instant lottery — pick 4 from 1–40, win immediately.\n\n` +
     `💰 Balance: *${formatUsd(fresh.balance_usd)}*\n` +
     `\n*Play cost:* ${formatUsd(config.playCostUsd)} per line (up to ${config.maxLines})\n\n` +
-    `⚠️ Play responsibly. Set limits. Take time-outs. 18+.`;
+    `⚠️ Deposit $1+ to unlock free welcome tickets. Play responsibly. Set limits. Take time-outs. 18+.`;
 
   await ctx.replyWithMarkdown(welcome, mainMenu());
 };

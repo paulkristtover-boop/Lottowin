@@ -54,28 +54,9 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
 }
 
 async function applyWelcomeIfEligible(telegramId) {
-  const user = await getUser(telegramId);
-  if (!user || user.welcome_bonus_claimed) return user;
-  if (!user.age_verified_at || !user.captcha_passed_at) return user;
-
-  if (config.welcomeBonusUsd > 0) {
-    await creditBalance(telegramId, config.welcomeBonusUsd, 'bonus', null, { reason: 'welcome' });
-    await query(`UPDATE users SET welcome_bonus_claimed = TRUE WHERE telegram_id = $1`, [telegramId]);
-  }
-
-  if (user.referred_by && config.referralBonusUsd > 0) {
-    await creditBalance(user.referred_by, config.referralBonusUsd, 'referral', null, {
-      reason: 'signup',
-      referred: telegramId,
-    });
-    await query(
-      `INSERT INTO referral_rewards (referrer_id, referred_id, amount_usd, reason)
-       VALUES ($1, $2, $3, 'signup')`,
-      [user.referred_by, telegramId, config.referralBonusUsd]
-    );
-  }
-
-  return getUser(telegramId);
+  // Cash welcome/referral bonuses removed — grant LOCKED free tickets only
+  const ticketCreditService = require('./ticketCreditService');
+  return ticketCreditService.grantWelcomeLocked(telegramId);
 }
 
 async function getUser(telegramId) {

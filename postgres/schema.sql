@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code   TEXT UNIQUE,
   referred_by     BIGINT,
   welcome_bonus_claimed BOOLEAN DEFAULT FALSE,
+  locked_tickets INT NOT NULL DEFAULT 0,
+  unlocked_tickets INT NOT NULL DEFAULT 0,
+  is_first_deposit_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  welcome_tickets_granted BOOLEAN NOT NULL DEFAULT FALSE,
+  referral_tickets_claimed BOOLEAN NOT NULL DEFAULT FALSE,
+  first_real_bet_at TIMESTAMPTZ,
   is_banned       BOOLEAN DEFAULT FALSE,
   ban_reason      TEXT,
   daily_limit_usd NUMERIC(18, 2) DEFAULT 50,
@@ -249,4 +255,24 @@ CREATE TABLE IF NOT EXISTS collusion_signals (
   details         JSONB,
   resolved        BOOLEAN DEFAULT FALSE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+-- Ticket credit ledger
+CREATE TABLE IF NOT EXISTS ticket_credits (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
+  delta_locked    INT NOT NULL DEFAULT 0,
+  delta_unlocked  INT NOT NULL DEFAULT 0,
+  reason          TEXT NOT NULL,
+  meta            JSONB,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_credits_user ON ticket_credits(user_id);
+
+CREATE TABLE IF NOT EXISTS daily_spend (
+  user_id         BIGINT NOT NULL,
+  period_date     DATE NOT NULL,
+  spent_usd       NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, period_date)
 );

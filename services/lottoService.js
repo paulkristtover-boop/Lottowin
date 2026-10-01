@@ -5,6 +5,7 @@ const rngService = require('./rngService');
 const liabilityService = require('./liabilityService');
 const taxService = require('./taxService');
 const fraudService = require('./fraudService');
+const ticketCreditService = require('./ticketCreditService');
 const { v4: uuidv4 } = require('uuid');
 
 function countMatches(userNums, winning) {
@@ -49,16 +50,41 @@ async function play(telegramId, lines) {
     throw new Error('Please complete verification first (/start)');
   }
 
-  const cost = lines.length * config.playCostUsd;
-  if (Number(user.balance_usd) < cost) {
+  const lineCount = lines.length;
+  const cost = lineCount * config.playCostUsd;
+  const freeAvail = Number(user.unlocked_tickets) || 0;
+  const freeUsed = Math.min(freeAvail, lineCount);
+  const cashLines = lineCount - freeUsed;
+  const cashCost = cashLines * config.playCostUsd;
+
+  if (Number(user.balance_usd) < cashCost) {
     throw new Error(
-      `Insufficient balance. Need $${cost.toFixed(2)}, have $${Number(user.balance_usd).toFixed(2)}`
+      `Insufficient balance. Need $${cashCost.toFixed(2)} cash for ${cashLines} line(s) ` +
+        `(${freeUsed} free ticket(s) available). Have $${Number(user.balance_usd).toFixed(2)}. Deposit to play.`
     );
   }
 
-  const todaySpent = await getTodayWagered(telegramId);
-  if (todaySpent + cost > Number(user.daily_limit_usd || config.defaultDailyLimitUsd)) {
-    throw new Error(`Daily limit reached ($${user.daily_limit_usd}). Adjust in Responsible Gaming.`);
+  // Daily spend limit applies to CASH only
+  if (cashCost > 0) {
+    const todaySpent = await ticketCreditService.getTodayCashSpend(telegramId);
+    const dailyCap = Number(user.daily_limit_usd || config.defaultDailyLimitUsd);
+    if (todaySpent + cashCost > dailyCap) {
+      throw new Error(`Daily spend limit reached ($${dailyCap}). Adjust in Responsible Gaming.`);
+    }
+  }
+
+  // Hard reject if theoretical max payout (all Match 4) would exceed remaining daily liability
+  const maxLinePrize = Number(config.prizesUsd[4] || config.maxPrizePerLineUsd);
+  const theoreticalMax = Math.min(
+    lineCount * maxLinePrize,
+    Number(config.maxPrizePerTicketUsd)
+  );
+  const paidToday = await liabilityService.getTodayPrizesPaid();
+  const remainingLiab = Math.max(0, Number(config.dailyLiabilityCapUsd) - paidToday);
+  if (theoreticalMax > remainingLiab) {
+    throw new Error(
+      'Daily prize pool is near capacity. Please try again later (liability protection).'
+    );
   }
 
   await fraudService.runPrePlayChecks(telegramId);
@@ -80,14 +106,45 @@ async function play(telegramId, lines) {
   try {
     await client.query('BEGIN');
 
-    const debit = await client.query(
-      `UPDATE users SET balance_usd = balance_usd - $1, total_wagered = total_wagered + $1, updated_at = NOW()
-       WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
-      [cost, telegramId]
+    // Lock user row
+    const locked = await client.query(
+      `SELECT * FROM users WHERE telegram_id = $1 FOR UPDATE`,
+      [telegramId]
     );
-    if (!debit.rows[0]) throw new Error('Insufficient balance');
+    const urow = locked.rows[0];
+    if (!urow) throw new Error('User not found');
 
-    let balanceAfter = Number(debit.rows[0].balance_usd);
+    let freeNow = Number(urow.unlocked_tickets) || 0;
+    const freeUse = Math.min(freeNow, lineCount);
+    const cashUse = lineCount - freeUse;
+    const cashPay = cashUse * config.playCostUsd;
+
+    if (Number(urow.balance_usd) < cashPay) throw new Error('Insufficient balance');
+
+    if (freeUse > 0) {
+      await client.query(
+        `UPDATE users SET unlocked_tickets = unlocked_tickets - $1, updated_at = NOW()
+         WHERE telegram_id = $2 AND unlocked_tickets >= $1`,
+        [freeUse, telegramId]
+      );
+      await client.query(
+        `INSERT INTO ticket_credits (user_id, delta_unlocked, reason, meta)
+         VALUES ($1, $2, 'play_consume', $3)`,
+        [telegramId, -freeUse, { lines: freeUse }]
+      );
+    }
+
+    let balanceAfter = Number(urow.balance_usd);
+    if (cashPay > 0) {
+      const debit = await client.query(
+        `UPDATE users SET balance_usd = balance_usd - $1, total_wagered = total_wagered + $1, updated_at = NOW()
+         WHERE telegram_id = $2 AND balance_usd >= $1 RETURNING balance_usd`,
+        [cashPay, telegramId]
+      );
+      if (!debit.rows[0]) throw new Error('Insufficient balance');
+      balanceAfter = Number(debit.rows[0].balance_usd);
+      await ticketCreditService.addTodayCashSpend(client, telegramId, cashPay);
+    }
 
     if (totalPrize > 0) {
       const credit = await client.query(
@@ -109,7 +166,7 @@ async function play(telegramId, lines) {
         ticketId,
         telegramId,
         JSON.stringify(results),
-        cost,
+        cashPay,
         totalPrize,
         graded.prizeBeforeCap,
         graded.liabilityCapped,
@@ -122,7 +179,7 @@ async function play(telegramId, lines) {
     await client.query(
       `INSERT INTO transactions (user_id, type, amount_usd, balance_after, reference_id, meta)
        VALUES ($1, 'play', $2, $3, $4, $5)`,
-      [telegramId, -cost, balanceAfter - totalPrize, ticketId, { lines: lines.length }]
+      [telegramId, -cashPay, balanceAfter - totalPrize, ticketId, { lines: lineCount, free: freeUse, cash: cashUse }]
     );
 
     if (totalPrize > 0) {
@@ -140,7 +197,7 @@ async function play(telegramId, lines) {
     }
 
     if (user.referred_by && config.referralPercent > 0) {
-      const refAmount = (cost * config.referralPercent) / 100;
+      const refAmount = (cashPay * config.referralPercent) / 100;
       if (refAmount > 0) {
         await client.query(
           `UPDATE users SET balance_usd = balance_usd + $1 WHERE telegram_id = $2`,
@@ -156,6 +213,24 @@ async function play(telegramId, lines) {
 
     await client.query('COMMIT');
 
+    // First real-money bet → unlock referral free tickets for referrer
+    if (cashPay > 0 && user.referred_by) {
+      try {
+        if (!user.first_real_bet_at) {
+          await query(
+            `UPDATE users SET first_real_bet_at = NOW() WHERE telegram_id = $1 AND first_real_bet_at IS NULL`,
+            [telegramId]
+          );
+          const given = await ticketCreditService.tryUnlockReferralTickets(user.referred_by, telegramId);
+          if (given > 0 && typeof global.notifyReferralTickets === 'function') {
+            /* optional hook */
+          }
+        }
+      } catch (e) {
+        console.error('[play] referral ticket unlock', e.message);
+      }
+    }
+
     // Bookkeeping after commit — must NOT fail the user-facing play result
     try {
       await rngService.logRngForTicket(ticketId, draw);
@@ -168,7 +243,7 @@ async function play(telegramId, lines) {
       console.error('[play] liability log failed', e.message);
     }
     try {
-      await taxService.recordPlay(cost, totalPrize);
+      await taxService.recordPlay(cashPay, totalPrize);
     } catch (e) {
       console.error('[play] tax ledger failed', e.message);
     }
@@ -182,7 +257,10 @@ async function play(telegramId, lines) {
       ticketId,
       winningNumbers,
       results,
-      cost,
+      cost: cashPay,
+      faceCost: lineCount * config.playCostUsd,
+      freeTicketsUsed: freeUse,
+      cashLines: cashUse,
       totalPrize,
       prizeBeforeCap: graded.prizeBeforeCap,
       liabilityCapped: graded.liabilityCapped,

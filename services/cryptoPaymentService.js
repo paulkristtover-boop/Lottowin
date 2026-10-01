@@ -296,6 +296,17 @@ async function scanAndCredit(bot) {
         [pending.baseAmount, pending.userId]
       ).catch(() => {});
 
+      // Unlock welcome free tickets on first qualifying deposit
+      let unlockInfo = { unlocked: 0 };
+      try {
+        unlockInfo = await require('./ticketCreditService').onSuccessfulDeposit(
+          pending.userId,
+          pending.baseAmount
+        );
+      } catch (e) {
+        logger.error('ticket unlock', e.message);
+      }
+
       await markHashProcessed(tx.hash, {
         userId: pending.userId,
         network: pending.network === 'erc20' ? 'usdt_erc20' : 'usdt_trc20',
@@ -309,13 +320,20 @@ async function scanAndCredit(bot) {
 
       if (bot?.telegram) {
         const netLabel = pending.network === 'erc20' ? 'USDT ERC-20' : 'USDT TRC-20';
+        let extra = '';
+        if (unlockInfo.unlocked > 0) {
+          extra = `\n\n🎫 *${unlockInfo.unlocked} free welcome tickets unlocked!* Use them on Play.`;
+        } else if (unlockInfo.firstDeposit) {
+          extra = '\n\nFirst deposit recorded.';
+        }
         await bot.telegram
           .sendMessage(
             pending.userId,
             `✅ *Deposit confirmed*\n\n` +
               `Network: ${netLabel}\n` +
               `Credited: *$${pending.baseAmount.toFixed(2)}*\n` +
-              `TX: \`${tx.hash}\``,
+              `TX: \`${tx.hash}\`` +
+              extra,
             { parse_mode: 'Markdown' }
           )
           .catch(() => {});

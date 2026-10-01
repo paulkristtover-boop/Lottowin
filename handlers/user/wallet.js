@@ -1,0 +1,137 @@
+const userService = require('../../services/userService');
+const ticketCreditService = require('../../services/ticketCreditService');
+const config = require('../../config');
+const { formatUsd } = require('../../utils/helpers');
+const { Markup } = require('telegraf');
+const cryptoPayment = require('../../services/cryptoPaymentService');
+
+function walletKeyboard(user) {
+  const min = Number(config.minDepositUsd);
+  const play = Number(config.playCostUsd);
+  const welcome = Number(config.welcomeFreeTickets) || 5;
+  const locked = Number(user.locked_tickets) || 0;
+  const firstDone = user.is_first_deposit_completed;
+
+  const rows = [];
+  if (!firstDone && locked > 0) {
+    rows.push([
+      Markup.button.callback(
+        `💳 Deposit $${min.toFixed(2)} → Unlock ${locked} free tickets`,
+        `dep:quick:${min}`
+      ),
+    ]);
+  }
+  rows.push([
+    Markup.button.callback(
+      `💳 Deposit $1.00 (${Math.floor(1 / play)} draws${
+        !firstDone && locked ? ` + ${locked} free` : ''
+      })`,
+      'dep:quick:1'
+    ),
+  ]);
+  rows.push([
+    Markup.button.callback('💳 Deposit $5.00', 'dep:quick:5'),
+    Markup.button.callback('💳 Deposit $10.00', 'dep:quick:10'),
+  ]);
+  rows.push([
+    Markup.button.callback('TRC-20 USDT', 'dep:trc20'),
+    Markup.button.callback('ERC-20 USDT', 'dep:erc20'),
+  ]);
+  rows.push([Markup.button.callback('« Main menu', 'menu:main')]);
+  return Markup.inlineKeyboard(rows);
+}
+
+async function showWallet(ctx) {
+  const user = await userService.getUser(ctx.from.id);
+  if (!user) return ctx.reply('Please /start first');
+
+  const locked = Number(user.locked_tickets) || 0;
+  const unlocked = Number(user.unlocked_tickets) || 0;
+  const welcome = Number(config.welcomeFreeTickets) || 5;
+  const firstDone = !!user.is_first_deposit_completed;
+
+  let progress = '';
+  if (!firstDone && user.welcome_tickets_granted) {
+    const bar = ticketCreditService.progressBar(0, 1, 10);
+    progress =
+      `\n🎫 *Free Welcome Tickets*\n` +
+      `${bar} 0/1 deposit\n` +
+      `Deposit ≥ ${formatUsd(config.minDepositUsd)} to unlock *${locked || welcome}* free tickets.\n`;
+  } else if (firstDone) {
+    progress =
+      `\n🎫 Free tickets unlocked: *${unlocked}*\n` +
+      (locked > 0 ? `Still locked: ${locked}\n` : '');
+  } else {
+    progress = `\nComplete age & CAPTCHA verification to receive locked welcome tickets.\n`;
+  }
+
+  const text =
+    `👛 *Wallet*\n\n` +
+    `Cash balance: *${formatUsd(user.balance_usd)}*\n` +
+    `Unlocked free tickets: *${unlocked}*\n` +
+    `Locked free tickets: *${locked}*\n` +
+    progress +
+    `\nPlay cost: ${formatUsd(config.playCostUsd)} / line\n` +
+    `Min deposit: ${formatUsd(config.minDepositUsd)} · Min withdraw: ${formatUsd(config.minWithdrawUsd)}\n\n` +
+    `_Free tickets are used first. Cash deposits never withdrawable as bonus — only real balance._`;
+
+  await ctx.replyWithMarkdown(text, walletKeyboard(user));
+}
+
+/**
+ * Quick deposit amount → start amount flow with prefilled network choice later
+ */
+async function handleQuickDeposit(ctx, amount) {
+  const amt = parseFloat(amount);
+  if (!Number.isFinite(amt) || amt < config.minDepositUsd) {
+    await ctx.answerCbQuery('Invalid amount');
+    return;
+  }
+  await ctx.answerCbQuery();
+  // Ask network then create pending with known base amount
+  const deposit = require('./deposit');
+  // Store pending amount in deposit flow via a custom state
+  deposit.depositFlow.set(ctx.from.id, { step: 'network_for_amount', amount: amt });
+  await ctx.replyWithMarkdown(
+    `Deposit *${formatUsd(amt)}*\n\nChoose network:`,
+    Markup.inlineKeyboard([
+      [Markup.button.callback('USDT TRC-20 (Tron)', `dep:net:trc20:${amt}`)],
+      [Markup.button.callback('USDT ERC-20 (Ethereum)', `dep:net:erc20:${amt}`)],
+      [Markup.button.callback('Cancel', 'menu:main')],
+    ])
+  );
+}
+
+async function handleNetAmount(ctx, network, amount) {
+  const amt = parseFloat(amount);
+  await ctx.answerCbQuery();
+  try {
+    const pending = cryptoPayment.createPendingDeposit(ctx.from.id, network, amt);
+    const netHuman = pending.network === 'erc20' ? 'ERC-20 (Ethereum)' : 'TRC-20 (Tron)';
+    const exact = pending.exactAmount.toFixed(6);
+    const user = await userService.getUser(ctx.from.id);
+    const locked = Number(user?.locked_tickets) || 0;
+    const unlockNote =
+      !user?.is_first_deposit_completed && locked > 0
+        ? `\n\n🎫 After this deposit confirms, *${locked} free tickets* unlock automatically.`
+        : '';
+
+    const msg =
+      `📥 *Deposit USDT ${netHuman}*\n\n` +
+      `Send *exactly*:\n\`${exact}\` USDT\n\n` +
+      `To:\n\`${pending.masterAddress}\`\n\n` +
+      `⏱ Valid 15 minutes\n` +
+      `⚠️ Exact amount required.${unlockNote}`;
+
+    await ctx.replyWithMarkdown(msg);
+  } catch (e) {
+    await ctx.reply(`❌ ${e.message}`);
+  }
+}
+
+module.exports = {
+  showWallet,
+  handleQuickDeposit,
+  handleNetAmount,
+  walletKeyboard,
+};

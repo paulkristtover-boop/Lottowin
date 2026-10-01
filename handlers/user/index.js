@@ -8,6 +8,7 @@ const referral = require('./referral');
 const about = require('./about');
 const support = require('./support');
 const responsible = require('./responsible');
+const wallet = require('./wallet');
 
 module.exports = {
   start,
@@ -20,4 +21,5 @@ module.exports = {
   about,
   support,
   responsible,
+  wallet,
 };
