@@ -40,7 +40,20 @@ async function selectGame(ctx, gameId) {
   s.lines = [];
   s.current = [];
   s.step = 'idle';
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch (_) {}
+  const game = lottoService.getGame(gameId);
+  // Brief rules strip before builder (full howto via 📖 buttons)
+  const tip =
+    `*${game.name}*
+` +
+    `Pick *${game.pick}* from *${game.from}–${game.to}* · ${require('../../utils/helpers').formatUsd(game.playCostUsd)}/line
+` +
+    (gameId === '4_40'
+      ? 'Prizes: Match 4 → $100 · 3 → $5 · 2 → $0.50 · 1 → $0.15'
+      : 'Prizes: Match 3 → $10 · 2 → $0.15 · 1 → $0.05');
+  await ctx.replyWithMarkdown(tip);
   return showPlayScreen(ctx);
 }
 

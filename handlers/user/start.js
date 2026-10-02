@@ -18,7 +18,8 @@ module.exports = async (ctx) => {
   if (!user.age_verified_at) {
     onboarding.set(ctx.from.id, { step: 'yob' });
     return ctx.replyWithMarkdown(
-      `👋 Welcome to *Insta Win 4/40*\n\n` +
+      `👋 Welcome to *Insta Win*\n\n` +
+        `Two instant games: *4/40* and *3/30*.\n\n` +
         `⚠️ *18+ only.* Gambling involves risk.\n\n` +
         `Please enter your *year of birth* (e.g. \`1995\`) to continue.`
     );
@@ -33,13 +34,25 @@ module.exports = async (ctx) => {
   }
 
   const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
+  const locked = Number(fresh.locked_tickets) || 0;
+  const unlocked = Number(fresh.unlocked_tickets) || 0;
+  const g440 = config.games['4_40'];
+  const g330 = config.games['3_30'];
 
   const welcome =
-    `🎰 *Welcome to Insta Win 4/40!*\n\n` +
-    `Instant lottery — pick 4 from 1–40, win immediately.\n\n` +
-    `💰 Balance: *${formatUsd(fresh.balance_usd)}*\n` +
-    `\n*Play cost:* ${formatUsd(config.playCostUsd)} per line (up to ${config.maxLines})\n\n` +
-    `⚠️ Deposit $1+ to unlock free welcome tickets. Play responsibly. Set limits. Take time-outs. 18+.`;
+    `🎰 *Welcome to Insta Win!*\n\n` +
+    `Instant lottery — results in seconds.\n\n` +
+    `🎯 *${g440.name}* — pick ${g440.pick} from ${g440.from}–${g440.to}\n` +
+    `   Top prize: *${formatUsd(g440.prizesUsd[4])}* · ${formatUsd(g440.playCostUsd)}/line\n\n` +
+    `🎲 *${g330.name}* — pick ${g330.pick} from ${g330.from}–${g330.to}\n` +
+    `   Top prize: *${formatUsd(g330.prizesUsd[3])}* · ${formatUsd(g330.playCostUsd)}/line\n\n` +
+    `💰 Cash: *${formatUsd(fresh.balance_usd)}*\n` +
+    `🎫 Free tickets: *${unlocked}* unlocked` +
+    (locked > 0 ? ` · *${locked}* locked` : '') +
+    `\n\n` +
+    `Deposit ≥ ${formatUsd(config.minDepositUsd)} to unlock welcome free tickets.\n` +
+    `Tap *Play* → choose a game (each has its own How to Play).\n\n` +
+    `⚠️ 18+. Play responsibly. Set limits. Take time-outs.`;
 
   await ctx.replyWithMarkdown(welcome, mainMenu());
 };
@@ -74,14 +87,14 @@ module.exports.handleOnboardingText = async (ctx) => {
     if (ans !== state.answer) {
       const cap = makeCaptcha();
       onboarding.set(ctx.from.id, { step: 'captcha', ...cap });
-      await ctx.replyWithMarkdown(`Wrong answer. Try again: what is *${cap.a} + ${cap.b}*?`);
+      await ctx.replyWithMarkdown(`Not quite. Try again: *${cap.a} + ${cap.b}*?`);
       return true;
     }
-    await userService.setCaptchaPassed(ctx.from.id);
     onboarding.delete(ctx.from.id);
-    const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
+    await userService.setCaptchaPassed(ctx.from.id);
+    await userService.applyWelcomeIfEligible(ctx.from.id);
     await ctx.replyWithMarkdown(
-      `✅ Verified!\n\n💰 Balance: *${formatUsd(fresh.balance_usd)}*\n\nYou can play now.`,
+      `✅ You're in!\n\nTap *Play* to choose *4/40* or *3/30*.\nEach game has its own rules & prizes.`,
       mainMenu()
     );
     return true;
@@ -89,5 +102,3 @@ module.exports.handleOnboardingText = async (ctx) => {
 
   return false;
 };
-
-module.exports.onboarding = onboarding;

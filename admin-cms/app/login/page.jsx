@@ -27,24 +27,37 @@ export default function LoginPage() {
 
   return (
     <div className="login-wrap">
-      <div className="login-box">
-        <h2 style={{ marginTop: 0 }}>LottoWin Admin</h2>
+      <div className="login-card">
+        <h1>🎰 LottoWin</h1>
+        <p className="sub">Admin CMS · Insta Win 4/40 &amp; 3/30</p>
         <form onSubmit={submit}>
+          <label htmlFor="user">Username</label>
           <input
-            placeholder="Username"
+            id="user"
+            placeholder="Admin username"
             value={user}
             onChange={(e) => setUser(e.target.value)}
             autoComplete="username"
+            required
           />
+          <label htmlFor="pass" style={{ marginTop: '0.75rem' }}>
+            Password
+          </label>
           <input
+            id="pass"
             type="password"
             placeholder="Password"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
             autoComplete="current-password"
+            required
           />
-          {err && <p style={{ color: 'var(--red)', fontSize: '0.9rem' }}>{err}</p>}
-          <button type="submit" className="btn" style={{ width: '100%' }}>
+          {err && (
+            <div className="flash err" style={{ marginTop: '0.85rem', marginBottom: 0 }}>
+              {err}
+            </div>
+          )}
+          <button type="submit" className="btn">
             Sign in
           </button>
         </form>

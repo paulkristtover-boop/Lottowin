@@ -82,6 +82,22 @@ module.exports = {
       maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
       prizesUsd: { 4: 100.0, 3: 5.0, 2: 0.5, 1: 0.15, 0: 0 },
       maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '100'),
+      howToPlay:
+        '🎯 *How to play Insta Win 4/40*\n\n' +
+        'Instant lottery — no waiting for a draw.\n\n' +
+        '*Goal:* Match your 4 numbers to the 4 winning numbers. Even *1 match* wins!\n\n' +
+        '*1. Choose numbers*\n' +
+        'Pick *exactly 4* numbers from *1–40* (or use Quick Pick).\n\n' +
+        '*2. Place your bet*\n' +
+        'Confirm to play. Stake is *$0.10 per line* (free tickets used first).\n\n' +
+        '*3. Instant result*\n' +
+        'Winning numbers are revealed immediately.\n\n' +
+        '*Prizes (per line)*\n' +
+        '• Match 4 → *$100*\n' +
+        '• Match 3 → *$5*\n' +
+        '• Match 2 → *$0.50*\n' +
+        '• Match 1 → *$0.15*\n\n' +
+        'Up to 10 lines per ticket. 18+ · Play responsibly.',
     },
     '3_30': {
       id: '3_30',
@@ -93,6 +109,21 @@ module.exports = {
       maxLines: parseInt(process.env.MAX_LINES_3_30 || '10', 10),
       prizesUsd: { 3: 10.0, 2: 0.15, 1: 0.05, 0: 0 },
       maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || '10'),
+      howToPlay:
+        '🎲 *How to play Insta Win 3/30*\n\n' +
+        'Faster grid — pick *3* numbers from *1–30*. Instant result.\n\n' +
+        '*Goal:* Match as many as you can to the 3 winning numbers. Even *1 match* pays!\n\n' +
+        '*1. Choose numbers*\n' +
+        'Select *exactly 3* numbers from *1–30* (or Quick Pick).\n\n' +
+        '*2. Place your bet*\n' +
+        'Confirm to play. Stake is *$0.10 per line* (free tickets used first).\n\n' +
+        '*3. Instant result*\n' +
+        'Three winning numbers are shown right away.\n\n' +
+        '*Prizes (per line)*\n' +
+        '• Match 3 → *$10*\n' +
+        '• Match 2 → *$0.15*\n' +
+        '• Match 1 → *$0.05*\n\n' +
+        'Up to 10 lines per ticket. 18+ · Play responsibly.',
     },
   },
   // Legacy alias (4/40)
@@ -108,34 +139,5 @@ module.exports = {
   supportUsername: process.env.SUPPORT_USERNAME || 'LottoWinSupport',
   channelLink: process.env.CHANNEL_LINK || 'https://t.me/LottoWinOfficial',
 
-  howToPlayText: `🎰 *How to play Insta Win 4/40*
-
-Insta Win 4/40 is an *instant* lottery — no waiting for a draw. Pick your 4 lucky numbers, place your bet, and find out if you've won immediately.
-
-*The Goal:* Match as many of your 4 numbers to the 4 winning numbers as you can. Even matching just *1* wins a prize!
-
-*1. Choose your numbers*
-Pick 4 lucky numbers from the grid of 1 to 40. You must select exactly 4 numbers. You can also use *Quick Pick* to have numbers chosen randomly.
-
-*2. Place your bet*
-Tap play to confirm. Stake is deducted from your balance. If balance is too low you will be prompted to top up.
-
-*3. See your result instantly*
-The 4 winning numbers are revealed right away. The more you match, the bigger your prize!
-
-*How much can I win?* (per $0.10 line)
-\`\`\`
-| Matched | Prize   |
-| ------- | ------- |
-| Match 4 | $100.00 |
-| Match 3 | $5.00   |
-| Match 2 | $0.50   |
-| Match 1 | $0.15   |
-\`\`\`
-
-🎁 5 free tickets unlock after your first $1+ deposit.
-👥 Refer friends — unlock free tickets + 5% commission.
-⚠️ 18+ only. Play responsibly. Set limits. Take time-outs.
-
-Good luck!`,
+  howToPlayText: 'Choose a game under Play for game-specific instructions (4/40 or 3/30).',
 };

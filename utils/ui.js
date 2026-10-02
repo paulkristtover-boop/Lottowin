@@ -61,8 +61,10 @@ function numberGrid(selected = [], game = { pick: 4, from: 1, to: 40 }) {
 
 function gamePicker() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('🎯 Insta Win 4/40', 'game:4_40')],
-    [Markup.button.callback('🎲 Insta Win 3/30', 'game:3_30')],
+    [Markup.button.callback('🎯 Play 4/40', 'game:4_40')],
+    [Markup.button.callback('📖 How to play 4/40', 'howto:4_40')],
+    [Markup.button.callback('🎲 Play 3/30', 'game:3_30')],
+    [Markup.button.callback('📖 How to play 3/30', 'howto:3_30')],
     [Markup.button.callback('« Main menu', 'menu:main')],
   ]);
 }

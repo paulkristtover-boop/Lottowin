@@ -128,6 +128,13 @@ bot.hears('🔒 Admin Panel', (ctx) => adminHandlers.showPanel(ctx));
 // ─── User callbacks ───
 bot.action('game:4_40', (ctx) => userHandlers.play.selectGame(ctx, '4_40'));
 bot.action('game:3_30', (ctx) => userHandlers.play.selectGame(ctx, '3_30'));
+bot.action('howto:4_40', (ctx) => userHandlers.about.showHowTo(ctx, '4_40'));
+bot.action('howto:3_30', (ctx) => userHandlers.about.showHowTo(ctx, '3_30'));
+bot.action('howto:menu', (ctx) => userHandlers.about(ctx));
+bot.action('menu:play', async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch (_) {}
+  return userHandlers.play.showGamePicker(ctx);
+});
 bot.action('play:add', userHandlers.play.startAddLine);
 bot.action('play:qp', (ctx) => userHandlers.play.quickPick(ctx, 1));
 bot.action('play:plus3', (ctx) => userHandlers.play.quickPick(ctx, 3));
