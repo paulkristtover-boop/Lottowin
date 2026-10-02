@@ -25,3 +25,7 @@ CREATE TABLE IF NOT EXISTS daily_spend (
   spent_usd       NUMERIC(18, 6) NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, period_date)
 );
+
+-- First-class game on tickets (4_40 | 3_30)
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS game TEXT DEFAULT '4_40';
+CREATE INDEX IF NOT EXISTS idx_tickets_game ON tickets(game);

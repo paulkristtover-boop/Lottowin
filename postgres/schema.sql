@@ -50,6 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);
 CREATE TABLE IF NOT EXISTS tickets (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         BIGINT NOT NULL REFERENCES users(telegram_id),
+  game            TEXT DEFAULT '4_40',
   lines           JSONB NOT NULL,
   cost_usd        NUMERIC(18, 6) NOT NULL,
   total_prize_usd NUMERIC(18, 6) NOT NULL DEFAULT 0,

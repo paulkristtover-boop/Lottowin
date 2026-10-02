@@ -178,14 +178,15 @@ async function play(telegramId, lines, gameId = '4_40') {
 
     const ticketId = uuidv4();
     await client.query(
-      `INSERT INTO tickets (id, user_id, lines, cost_usd, total_prize_usd, prize_before_cap, liability_capped, winning_numbers, rng_seed, rng_source, status)
+      `INSERT INTO tickets (id, user_id, game, lines, cost_usd, total_prize_usd, prize_before_cap, liability_capped, winning_numbers, rng_seed, rng_source, status)
        VALUES (
-         $1::uuid, $2::bigint, $3::jsonb, $4::numeric, $5::numeric, $6::numeric, $7::boolean,
-         $8::int[], $9::text, $10::text, 'completed'
+         $1::uuid, $2::bigint, $3::text, $4::jsonb, $5::numeric, $6::numeric, $7::numeric, $8::boolean,
+         $9::int[], $10::text, $11::text, 'completed'
        )`,
       [
         ticketId,
         telegramId,
+        game.id,
         JSON.stringify({ game: game.id, results }),
         cashPay,
         totalPrize,

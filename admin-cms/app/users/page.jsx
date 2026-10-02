@@ -139,7 +139,7 @@ export default async function UsersPage({ searchParams }) {
             )}
             {rows.map((u) => (
               <tr key={u.telegram_id}>
-                <td>{u.telegram_id}</td>
+                <td><a href={`/users/${u.telegram_id}`}>{u.telegram_id}</a></td>
                 <td>
                   {u.first_name || '—'} {u.username ? `(@${u.username})` : ''}
                 </td>

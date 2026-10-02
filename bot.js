@@ -95,16 +95,23 @@ bot.command('dm', (ctx) => adminHandlers.startDm(ctx));
 bot.command('liability', (ctx) => adminHandlers.liability(ctx));
 bot.command('tickets', (ctx) => adminHandlers.listSupport(ctx));
 
-// ─── User text menu ───
-bot.hears('🎰 Play Lotto', (ctx) => userHandlers.play.showGamePicker(ctx));
+// ─── User text menu (slim primary + More) ───
+bot.hears(['🎰 Play', '🎰 Play Lotto'], (ctx) => userHandlers.play.showGamePicker(ctx));
 bot.hears(['👛 Wallet', 'Wallet'], (ctx) => userHandlers.wallet.showWallet(ctx));
+bot.hears('🆘 Support', userHandlers.support.showSupport);
+bot.hears('📋 More', async (ctx) => {
+  const { moreMenu } = require('./utils/ui');
+  await ctx.reply('More options:', moreMenu());
+});
+bot.hears(['« Main menu', 'Main menu'], async (ctx) => {
+  await ctx.reply('Main menu', mainMenu());
+});
 bot.hears('💰 Balance', userHandlers.balance);
 bot.hears('📥 Deposit', userHandlers.deposit.showDeposit);
 bot.hears('📤 Withdraw', userHandlers.withdraw.showWithdraw);
 bot.hears('📊 Activity', userHandlers.activity);
 bot.hears('👥 Referral', userHandlers.referral);
 bot.hears(['ℹ️ About', 'ℹ️ How to Play'], userHandlers.about);
-bot.hears('🆘 Support', userHandlers.support.showSupport);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
 
 // ─── Admin text menu ───
@@ -144,6 +151,10 @@ bot.action('resp:timeout24', (ctx) => userHandlers.responsible.setTimeout(ctx, 2
 bot.action('resp:exclude7', (ctx) => userHandlers.responsible.setTimeout(ctx, 24 * 7));
 bot.action('resp:daily', (ctx) => userHandlers.responsible.promptLimit(ctx, 'daily'));
 bot.action('resp:session', (ctx) => userHandlers.responsible.promptLimit(ctx, 'session'));
+bot.action('ux:wallet', async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch (_) {}
+  return userHandlers.wallet.showWallet(ctx);
+});
 bot.action('menu:main', async (ctx) => {
   await ctx.answerCbQuery();
   if (adminHandlers.isAdmin(ctx)) {

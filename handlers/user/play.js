@@ -1,7 +1,7 @@
 const lottoService = require('../../services/lottoService');
 const userService = require('../../services/userService');
 const config = require('../../config');
-const { playMenu, numberGrid, mainMenu, gamePicker } = require('../../utils/ui');
+const { playMenu, numberGrid, mainMenu, gamePicker, afterPlayMenu } = require('../../utils/ui');
 const { formatUsd, formatNumbers } = require('../../utils/helpers');
 
 const sessions = new Map();
@@ -157,7 +157,7 @@ async function confirmPlay(ctx) {
     if (result.liabilityCapped) text += `\n_Prize adjusted by pool protection._`;
     text += `\nBalance: *${formatUsd(result.balanceAfter)}*`;
 
-    await ctx.replyWithMarkdown(text, mainMenu());
+    await ctx.replyWithMarkdown(text, afterPlayMenu(result.gameId || s.gameId || '4_40'));
   } catch (e) {
     await ctx.reply(`❌ ${e.message}`, mainMenu());
   }

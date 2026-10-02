@@ -34,9 +34,9 @@ export default async function TicketsPage({ searchParams }) {
     i++;
   }
   if (f.type === '4_40') {
-    conditions.push(`(lines->>'game' = '4_40' OR lines->>'game' IS NULL)`);
+    conditions.push(`(COALESCE(game, lines->>'game', '4_40') = '4_40')`);
   } else if (f.type === '3_30') {
-    conditions.push(`lines->>'game' = '3_30'`);
+    conditions.push(`(COALESCE(game, lines->>'game') = '3_30')`);
   }
   if (f.from) {
     conditions.push(`created_at >= $${i}::date`);
@@ -110,7 +110,7 @@ export default async function TicketsPage({ searchParams }) {
               </tr>
             )}
             {rows.map((t) => {
-              const game = extractGame(t.lines);
+              const game = t.game || extractGame(t.lines);
               const results = extractResults(t.lines);
               return (
                 <tr key={t.id}>

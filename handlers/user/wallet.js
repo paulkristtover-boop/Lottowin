@@ -127,6 +127,10 @@ async function handleNetAmount(ctx, network, amount) {
       `⚠️ Exact amount required.${unlockNote}`;
 
     await ctx.replyWithMarkdown(msg);
+    const reminder = require('./deposit').pendingReminderText(pending);
+    if (reminder) {
+      await ctx.replyWithMarkdown(reminder + '\n\n_Save this until the deposit confirms._', require('../../utils/ui').mainMenu());
+    }
   } catch (e) {
     await ctx.reply(`❌ ${e.message}`);
   }
