@@ -357,7 +357,7 @@ async function handleAdminCallback(ctx, bot) {
 async function listPendingDeposits(ctx) {
   if (!requireAdmin(ctx)) return;
   const cryptoPayment = require('../../services/cryptoPaymentService');
-  const list = cryptoPayment.listPending();
+  const list = await cryptoPayment.listPending();
   if (!list.length) return ctx.reply('No active pending deposits.', adminKb.main());
   let text = '*Active pending deposits*\n\n';
   for (const p of list.slice(0, 20)) {
@@ -368,11 +368,38 @@ async function listPendingDeposits(ctx) {
 }
 
 
+
+/** /creditdep <telegramId> <amount> <erc20|trc20> [txhash] */
+async function creditDeposit(ctx) {
+  if (!requireAdmin(ctx)) return;
+  const parts = (ctx.message.text || '').trim().split(/\s+/);
+  // /creditdep uid amount network [hash]
+  if (parts.length < 4) {
+    return ctx.reply('Usage: /creditdep <telegramId> <amount> <erc20|trc20> [txHash]');
+  }
+  const userId = Number(parts[1]);
+  const amount = parseFloat(parts[2]);
+  const network = parts[3];
+  const txHash = parts[4] || null;
+  try {
+    const cryptoPayment = require('../../services/cryptoPaymentService');
+    const { formatUsd } = require('../../utils/helpers');
+    await cryptoPayment.manualCreditDeposit(userId, amount, network, txHash);
+    await ctx.reply(`Credited ${formatUsd(amount)} to ${userId} (${network})${txHash ? ' TX ' + txHash : ''}`);
+    try {
+      await ctx.telegram.sendMessage(userId, `✅ Deposit credited by admin: ${formatUsd(amount)}`);
+    } catch (_) {}
+  } catch (e) {
+    await ctx.reply('Error: ' + e.message);
+  }
+}
+
 module.exports = {
   isAdmin,
   requireAdmin,
   showPanel,
   listPendingDeposits,
+  creditDeposit,
   stats,
   listPendingWd,
   startBroadcast,

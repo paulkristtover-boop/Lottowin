@@ -110,7 +110,7 @@ async function handleNetAmount(ctx, network, amount) {
     await ctx.answerCbQuery();
   } catch (_) {}
   try {
-    const pending = cryptoPayment.createPendingDeposit(ctx.from.id, network, amt);
+    const pending = await cryptoPayment.createPendingDeposit(ctx.from.id, network, amt);
     const netHuman = pending.network === 'erc20' ? 'ERC-20 (Ethereum)' : 'TRC-20 (Tron)';
     const exact = pending.exactAmount.toFixed(6);
     const user = await userService.getUser(ctx.from.id);

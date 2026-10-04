@@ -51,6 +51,7 @@ bot.command('admin', (ctx) => adminHandlers.showPanel(ctx));
 bot.command('stats', (ctx) => adminHandlers.stats(ctx));
 bot.command('pending', (ctx) => adminHandlers.listPendingWd(ctx));
 bot.command('pendingdep', (ctx) => adminHandlers.listPendingDeposits(ctx));
+bot.command('creditdep', (ctx) => adminHandlers.creditDeposit(ctx));
 bot.command('approve', async (ctx) => {
   if (!adminHandlers.isAdmin(ctx)) return;
   const parts = ctx.message.text.split(/\s+/);

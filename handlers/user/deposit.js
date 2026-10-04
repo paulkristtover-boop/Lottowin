@@ -31,7 +31,7 @@ function pendingActions() {
 
 async function showDeposit(ctx) {
   depositFlow.delete(ctx.from.id);
-  const pending = cryptoPayment.getPendingForUser(ctx.from.id);
+  const pending = await cryptoPayment.getPendingForUser(ctx.from.id);
   let text =
     `📥 *Deposit USDT*\n\n` +
     `• *TRC-20* (Tron) — lower fees\n` +
@@ -68,7 +68,7 @@ async function showStatus(ctx) {
   try {
     await ctx.answerCbQuery();
   } catch (_) {}
-  const p = cryptoPayment.getPendingForUser(ctx.from.id);
+  const p = await cryptoPayment.getPendingForUser(ctx.from.id);
   if (!p) {
     return ctx.reply('No active pending deposit.', depositMenu());
   }
@@ -97,7 +97,7 @@ async function handleDepositText(ctx) {
   }
 
   try {
-    const pending = cryptoPayment.createPendingDeposit(ctx.from.id, state.network, base);
+    const pending = await cryptoPayment.createPendingDeposit(ctx.from.id, state.network, base);
     depositFlow.delete(ctx.from.id);
 
     const netHuman = pending.network === 'erc20' ? 'ERC-20 (Ethereum)' : 'TRC-20 (Tron)';
