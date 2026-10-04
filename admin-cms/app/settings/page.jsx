@@ -4,24 +4,24 @@ export default function SettingsPage() {
   return (
     <AdminShell title="Settings">
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Economics (bot env)</h3>
+        <h3 style={{ marginTop: 0 }}>Economics (micro USDT)</h3>
         <table>
           <tbody>
+            <tr>
+              <td>PLAY_COST_USD</td>
+              <td>$0.00001 / line (both games)</td>
+            </tr>
             <tr>
               <td>MIN_DEPOSIT_USD</td>
               <td>$1.00</td>
             </tr>
             <tr>
               <td>MIN_WITHDRAW_USD</td>
-              <td>$2.00</td>
-            </tr>
-            <tr>
-              <td>PLAY_COST_USD</td>
-              <td>$0.10 / line (both games)</td>
+              <td>$1.00</td>
             </tr>
             <tr>
               <td>WELCOME_FREE_TICKETS</td>
-              <td>5 locked → unlock after first deposit</td>
+              <td>5 locked → unlock after first $1 deposit</td>
             </tr>
             <tr>
               <td>REFERRAL_FREE_TICKETS</td>
@@ -33,7 +33,7 @@ export default function SettingsPage() {
             </tr>
             <tr>
               <td>DAILY_LIABILITY_CAP_USD</td>
-              <td>$2,000 rolling</td>
+              <td>$50 (micro tops)</td>
             </tr>
             <tr>
               <td>GAMING_TAX_RATE</td>
@@ -47,7 +47,10 @@ export default function SettingsPage() {
         </table>
       </div>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Games</h3>
+        <h3 style={{ marginTop: 0 }}>Games — AfriMillions-style multiples on micro stake</h3>
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+          Scaled from ₦100 line ratios (10,000× / 50× / 5× / 1.5× for 4/40; 1,000× / 15× / 1× for 3/30).
+        </p>
         <table>
           <thead>
             <tr>
@@ -60,23 +63,19 @@ export default function SettingsPage() {
             <tr>
               <td>Insta Win 4/40</td>
               <td>4 from 1–40</td>
-              <td>Match 4 $100 · 3 $5 · 2 $0.50 · 1 $0.15</td>
+              <td>Match 4 $0.10 · 3 $0.0005 · 2 $0.00005 · 1 $0.000015</td>
             </tr>
             <tr>
               <td>Insta Win 3/30</td>
               <td>3 from 1–30</td>
-              <td>Match 3 $10 · 2 $0.15 · 1 $0.05</td>
+              <td>Match 3 $0.01 · 2 $0.00015 · 1 $0.00001</td>
             </tr>
           </tbody>
         </table>
-        <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
-          3/30 prizes converted from ₦100k / ₦1.5k / ₦100 using platform scale (~₦10k ≈ $1).
-        </p>
       </div>
       <div className="card">
         <p style={{ margin: 0, color: 'var(--muted)' }}>
-          Runtime values are controlled by bot environment variables and Postgres — not editable
-          from this CMS for safety. Treasury addresses stay in bot <code>.env</code> only.
+          Runtime values come from bot environment variables. Redeploy bot after changing .env.
         </p>
       </div>
     </AdminShell>

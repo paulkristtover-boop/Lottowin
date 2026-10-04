@@ -10,6 +10,7 @@ function walletKeyboard(user) {
   const play = Number(config.playCostUsd);
   const locked = Number(user.locked_tickets) || 0;
   const firstDone = !!user.is_first_deposit_completed;
+  const linesPerDollar = play > 0 ? Math.floor(1 / play) : 0;
 
   const rows = [];
   if (!firstDone && locked > 0) {
@@ -22,15 +23,15 @@ function walletKeyboard(user) {
   }
   rows.push([
     Markup.button.callback(
-      `💳 Deposit $1.00 (${Math.floor(1 / play)} draws${
+      `💳 $1 (~${linesPerDollar.toLocaleString()} lines${
         !firstDone && locked ? ` + ${locked} free` : ''
       })`,
       'dep:quick:1'
     ),
   ]);
   rows.push([
-    Markup.button.callback('💳 Deposit $5.00', 'dep:quick:5'),
-    Markup.button.callback('💳 Deposit $10.00', 'dep:quick:10'),
+    Markup.button.callback('💳 $5', 'dep:quick:5'),
+    Markup.button.callback('💳 $10', 'dep:quick:10'),
   ]);
   rows.push([
     Markup.button.callback('TRC-20 USDT', 'dep:trc20'),
