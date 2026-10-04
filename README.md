@@ -1,109 +1,118 @@
-# LottoWin – Instant 4/40 Telegram Lottery Bot
+# LottoWin — Instant Win Telegram Lottery
 
-Simple instant-win lottery: pick **4 numbers from 1–40**, up to **10 lines** per ticket. Instant draw, instant payout to balance.
-
-## Features
-
-### Compliance & risk (v2)
-- Year-of-birth age gate (18+)
-- Math CAPTCHA on first use
-- Automated tiered payout grader
-- Liability caps (per line / ticket / daily)
-- Gaming tax ledger (default 11% of GGR) + CSV export
-- Fraud filters (rapid play, referral rings, win bursts)
-- RNG with seed audit + admin manual draw override
-- Broadcast / push alerts engine
-- Responsive Bootstrap-style admin CMS
-
-### Core
-
-- **Play**
-  - 1–40 number grid with clear selection
-  - Quick Pick, +3 lines, +5 lines
-  - 0 of 4 indicator while selecting
-  - Configurable cost per line (default $0.10)
-  - Prize table: 4 matches → 5000×, 3 → 50×, 2 → 5×
-
-- **Crypto**
-  - USDT TRC20 / ERC20 deposits
-  - Blockchain scanner (TronGrid + Etherscan)
-  - Claim-by-TX-hash flow
-  - Withdrawals with admin approval
-
-- **Responsible Gaming**
-  - Daily & session limits
-  - Time-out / self-exclusion
-  - Clear 18+ and BeGambleAware messaging
-
-- **Growth**
-  - Welcome bonus
-  - Referral link + signup bonus + % of play
-
-- **Admin**
-  - Telegram admin commands (`/stats`, `/pending`, `/approve`, `/reject`)
-  - Full Next.js CMS on Vercel (users, deposits, withdrawals, treasury, audit, settings)
+Telegram bot + Postgres + Next.js admin CMS. Instant draws for **4/40** and **3/30**, micro USDT stakes, **USDT TRC-20 (Tron)** and **USDT ERC-20 (Ethereum)** deposits via explorer polling.
 
 ## Stack
 
-| Layer        | Tech              |
-|--------------|-------------------|
-| Bot          | Node.js + Telegraf |
-| Database     | PostgreSQL        |
-| Hosting bot  | Railway / any Node |
-| Admin CMS    | Next.js on Vercel |
-| Payments     | On-chain USDT     |
+| Piece | Role |
+|--------|------|
+| **Bot** (`bot.js`) | Telegraf · Railway (polling or webhook) |
+| **Postgres** | Users, tickets, deposits, withdrawals, tax, audit |
+| **Jobs** | Deposit scanner every **30s** (Etherscan + Tronscan/TronGrid) |
+| **Admin CMS** | Next.js App Router · Vercel |
 
-## Quick Start
+## Economy (defaults)
+
+| Setting | Default |
+|---------|---------|
+| Line stake | **$0.00001** |
+| Min deposit / withdraw | **$1** |
+| Daily player spend limit | **$1** |
+| Session spend limit | **$0.50** / 20 min |
+| Cooldown | **1 min** between tickets |
+| Daily liability cap | **$50** |
+
+### Prizes (per line)
+
+**4/40** — Match 4 **$0.10** · 3 **$0.0005** · 2 **$0.00005** · 1 **$0.000015**  
+**3/30** — Match 3 **$0.01** · 2 **$0.00015** · 1 **$0.00001**
+
+Free tickets: 5 welcome (unlock after first ≥ $1 deposit), 3 referral after first cash bet; 5% referral commission on cash play.
+
+## Crypto payments (TRC-20 & ERC-20)
+
+### Flow — deposits
+1. User picks network (TRC-20 or ERC-20) and base USD amount (≥ min deposit).
+2. Bot assigns a **unique 6-decimal amount** (base + dust) valid **15 minutes**.
+3. User sends **exact USDT** to the master address.
+4. Background job scans explorers; on match, credits **base** amount, stores TX hash (no double credit), notifies user (+ admins), unlocks welcome tickets if first deposit.
+
+### Flow — withdrawals
+1. User chooses network, address (validated `T…` / `0x…`), amount.
+2. Balance debited; row queued as `pending`.
+3. All admins get a Telegram alert with ref + address.
+4. Admin sends USDT manually → `/approve <ref> <txhash>` or reject.
+
+### Env (bot)
 
 ```bash
-cp .env.example .env
-# fill BOT_TOKEN, DATABASE_URL, treasury addresses, ADMIN_IDS
+TELEGRAM_BOT_TOKEN=
+ADMIN_IDS=111,222
+DATABASE_URL=postgres://...
 
+# Master USDT wallets (hot treasury — never commit private keys)
+TRC20_MASTER_ADDRESS=T...
+ERC20_MASTER_ADDRESS=0x...
+
+ETHERSCAN_API_KEY=
+TRONSCAN_API_KEY=
+# optional alias
+TRONGRID_API_KEY=
+
+MIN_DEPOSIT_USD=1
+MIN_WITHDRAW_USD=1
+PLAY_COST_USD=0.00001
+DEFAULT_DAILY_LIMIT_USD=1
+DEFAULT_SESSION_LIMIT_USD=0.5
+DEFAULT_SESSION_LIMIT_MINS=20
+COOLDOWN_MINUTES=1
+DAILY_LIABILITY_CAP_USD=50
+```
+
+Contracts used:
+- USDT ERC-20: `0xdAC17F958D2ee523a2206206994597C13D831ec7`
+- USDT TRC-20: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`
+
+## User bot
+
+- Slim menu: **Play · Wallet · Support** (+ **More**)
+- Play → 4/40 or 3/30 (howto per game)
+- Wallet / Deposit / Withdraw for USDT both networks
+- Responsible gaming, referral, activity
+
+## Admin bot
+
+Keyboard: Stats, Pending WD, **Pending Dep**, Broadcast, Message User, Support, Liability, Set Draw, Tax Export.
+
+Useful commands: `/stats` `/pending` `/pendingdep` `/approve` `/reject` `/broadcast` `/dm`
+
+## Admin CMS (Vercel)
+
+Dashboard, users (detail), tickets, free-ticket ledger, deposits, withdrawals, treasury (addresses + by chain), tax, fraud, broadcast, message, settings.
+
+Set the **same** `DATABASE_URL` and treasury address env vars on Vercel for treasury page display. Auth via `CMS_ADMIN_USER` / `CMS_ADMIN_PASS` (or project auth).
+
+## Deploy
+
+```bash
+# DB
+psql $DATABASE_URL -f postgres/schema.sql
+psql $DATABASE_URL -f scripts/migrate-free-tickets.sql
+psql $DATABASE_URL -f scripts/migrate-micro-limits.sql
+
+# Bot
 npm install
-npm run migrate
 npm start
+
+# CMS
+cd admin-cms && npm install && npm run build
 ```
 
-## Environment
+See `docs/DEPLOY_RAILWAY.md` and `docs/DEPLOY_VERCEL.md` if present.
 
-See `.env.example`. Critical:
+## Responsible gaming
 
-- `BOT_TOKEN`
-- `DATABASE_URL`
-- `USDT_TRC20_ADDRESS` / `USDT_ERC20_ADDRESS`
-- `ADMIN_IDS` (comma-separated Telegram user IDs)
-- `PLAY_COST_USD` (default 0.10)
-- `WELCOME_BONUS_USD`
-
-## Admin CMS
-
-```bash
-cd admin-cms
-cp .env.example .env.local
-npm install
-npm run dev
-```
-
-Deploy to Vercel. Point `DATABASE_URL` to the same Postgres instance.
-
-## Prize Economics (default $0.10 line)
-
-| Matches | Multiplier | Payout |
-|---------|------------|--------|
-| 4       | 5000×      | $500   |
-| 3       | 50×        | $5     |
-| 2       | 5×         | $0.50  |
-| 0–1     | 0          | $0     |
-
-Adjust in `config/index.js` → `prizes`.
-
-## Responsible Gaming
-
-Every play screen and the About / Responsible menus include:
-
-> Set limits. Take time out. Use our tools to help you stay in control. Be gamble aware. 18+.
-
-Users can set daily/session limits and self-exclude for 24h or 7 days.
+18+ · age + CAPTCHA onboarding · daily/session limits · cooldown · time-out / self-exclude · BeGambleAware-style messaging.
 
 ## License
 

@@ -25,6 +25,8 @@ module.exports = async (ctx, next) => {
   const adminLabels = [
     '📈 Stats',
     '💸 Pending WD',
+    '📥 Pending Dep',
+    '📥 Pending Deposits',
     '📢 Broadcast',
     '💬 Message User',
     '🎫 Support Tickets',

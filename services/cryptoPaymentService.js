@@ -14,6 +14,7 @@ const config = require('../config');
 const userService = require('./userService');
 const { query } = require('../database');
 const logger = require('../utils/logger');
+const { formatUsd } = require('../utils/helpers');
 
 // ─── In-memory pending deposits ───────────────────────────────────────────
 /** @type {Array<{id:string,userId:number,network:string,exactAmount:number,baseAmount:number,expiresAt:number,createdAt:number}>} */
@@ -331,12 +332,22 @@ async function scanAndCredit(bot) {
             pending.userId,
             `✅ *Deposit confirmed*\n\n` +
               `Network: ${netLabel}\n` +
-              `Credited: *$${pending.baseAmount.toFixed(2)}*\n` +
+              `Credited: *${formatUsd(pending.baseAmount)}*\n` +
               `TX: \`${tx.hash}\`` +
               extra,
             { parse_mode: 'Markdown' }
           )
           .catch(() => {});
+        for (const adminId of config.adminIds || []) {
+          await bot.telegram
+            .sendMessage(
+              adminId,
+              `💰 Deposit ${netLabel}\nUser: ${pending.userId}\n` +
+                `${formatUsd(pending.baseAmount)} · \`${tx.hash}\``,
+              { parse_mode: 'Markdown' }
+            )
+            .catch(() => {});
+        }
       }
 
       logger.info('Deposit matched', {

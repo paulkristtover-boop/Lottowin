@@ -78,19 +78,50 @@ async function play(telegramId, lines, gameId = '4_40') {
   const cashLines = lineCount - freeUsed;
   const cashCost = cashLines * config.playCostUsd;
 
+  const { formatUsd } = require('../utils/helpers');
   if (Number(user.balance_usd) < cashCost) {
     throw new Error(
-      `Insufficient balance. Need $${cashCost.toFixed(2)} cash for ${cashLines} line(s) ` +
-        `(${freeUsed} free ticket(s) available). Have $${Number(user.balance_usd).toFixed(2)}. Deposit to play.`
+      `Insufficient balance. Need ${formatUsd(cashCost)} cash for ${cashLines} line(s) ` +
+        `(${freeUsed} free ticket(s) available). Have ${formatUsd(user.balance_usd)}. Deposit to play.`
     );
   }
 
-  // Daily spend limit applies to CASH only
+  // Cooldown between tickets (all plays, free or cash)
+  const cooldownMin = Number(config.cooldownMinutes) || 0;
+  if (cooldownMin > 0) {
+    const lastAt = await ticketCreditService.getLastPlayAt(telegramId);
+    if (lastAt) {
+      const elapsedMs = Date.now() - new Date(lastAt).getTime();
+      const needMs = cooldownMin * 60 * 1000;
+      if (elapsedMs < needMs) {
+        const waitSec = Math.ceil((needMs - elapsedMs) / 1000);
+        const waitMin = Math.ceil(waitSec / 60);
+        throw new Error(
+          waitSec < 60
+            ? `Cooldown: wait ${waitSec}s before the next ticket.`
+            : `Cooldown: wait ~${waitMin} min before the next ticket.`
+        );
+      }
+    }
+  }
+
+  // Daily + session spend limits apply to CASH only
   if (cashCost > 0) {
     const todaySpent = await ticketCreditService.getTodayCashSpend(telegramId);
-    const dailyCap = Number(user.daily_limit_usd || config.defaultDailyLimitUsd);
+    const dailyCap = Number(user.daily_limit_usd ?? config.defaultDailyLimitUsd);
     if (todaySpent + cashCost > dailyCap) {
-      throw new Error(`Daily spend limit reached ($${dailyCap}). Adjust in Responsible Gaming.`);
+      throw new Error(
+        `Daily spend limit reached (${formatUsd(dailyCap)}). Adjust in Responsible Gaming.`
+      );
+    }
+
+    const sessionMins = Number(config.defaultSessionLimitMins) || 20;
+    const sessionSpent = await ticketCreditService.getSessionCashSpend(telegramId, sessionMins);
+    const sessionCap = Number(user.session_limit_usd ?? config.defaultSessionLimitUsd);
+    if (sessionSpent + cashCost > sessionCap) {
+      throw new Error(
+        `Session spend limit reached (${formatUsd(sessionCap)} per ${sessionMins} min). Take a short break.`
+      );
     }
   }
 

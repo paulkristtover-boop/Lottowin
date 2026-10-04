@@ -51,9 +51,9 @@ module.exports = {
 
   // Responsible gaming defaults
   defaultDailyLimitUsd: parseFloat(process.env.DEFAULT_DAILY_LIMIT_USD || '1'),
-  defaultSessionLimitUsd: parseFloat(process.env.DEFAULT_SESSION_LIMIT_USD || '20'),
+  defaultSessionLimitUsd: parseFloat(process.env.DEFAULT_SESSION_LIMIT_USD || '0.5'),
   defaultSessionLimitMins: parseInt(process.env.DEFAULT_SESSION_LIMIT_MINS || '20', 10),
-  cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '5', 10),
+  cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '1', 10),
 
   nodeEnv: process.env.NODE_ENV || 'development',
   webhookUrl: process.env.WEBHOOK_URL || '',

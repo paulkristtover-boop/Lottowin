@@ -3,7 +3,7 @@ const { Markup } = require('telegraf');
 module.exports = {
   main: () =>
     Markup.keyboard([
-      ['📈 Stats', '💸 Pending WD'],
+      ['📈 Stats', '💸 Pending WD', '📥 Pending Dep'],
       ['📢 Broadcast', '💬 Message User'],
       ['🎫 Support Tickets', '🛡️ Liability'],
       ['🎲 Set Draw', '📊 Tax Export'],

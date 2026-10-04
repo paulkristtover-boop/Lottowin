@@ -178,6 +178,26 @@ async function addTodayCashSpend(client, telegramId, amount) {
   );
 }
 
+async function getSessionCashSpend(telegramId, windowMinutes) {
+  const mins = Math.max(1, Number(windowMinutes) || 20);
+  const res = await query(
+    `SELECT COALESCE(SUM(cost_usd), 0) AS s
+     FROM tickets
+     WHERE user_id = $1
+       AND created_at > NOW() - ($2::text || ' minutes')::interval`,
+    [telegramId, String(mins)]
+  );
+  return Number(res.rows[0]?.s || 0);
+}
+
+async function getLastPlayAt(telegramId) {
+  const res = await query(
+    `SELECT created_at FROM tickets WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [telegramId]
+  );
+  return res.rows[0]?.created_at || null;
+}
+
 module.exports = {
   progressBar,
   grantWelcomeLocked,
@@ -185,4 +205,6 @@ module.exports = {
   tryUnlockReferralTickets,
   getTodayCashSpend,
   addTodayCashSpend,
+  getSessionCashSpend,
+  getLastPlayAt,
 };

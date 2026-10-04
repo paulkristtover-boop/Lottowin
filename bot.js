@@ -117,6 +117,7 @@ bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.resp
 // ─── Admin text menu ───
 bot.hears('📈 Stats', (ctx) => adminHandlers.stats(ctx));
 bot.hears('💸 Pending WD', (ctx) => adminHandlers.listPendingWd(ctx));
+bot.hears(['📥 Pending Dep', '📥 Pending Deposits'], (ctx) => adminHandlers.listPendingDeposits(ctx));
 bot.hears('📢 Broadcast', (ctx) => adminHandlers.startBroadcast(ctx));
 bot.hears('💬 Message User', (ctx) => adminHandlers.startDm(ctx));
 bot.hears('🎫 Support Tickets', (ctx) => adminHandlers.listSupport(ctx));

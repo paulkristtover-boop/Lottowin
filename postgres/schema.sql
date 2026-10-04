@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
   first_real_bet_at TIMESTAMPTZ,
   is_banned       BOOLEAN DEFAULT FALSE,
   ban_reason      TEXT,
-  daily_limit_usd NUMERIC(18, 2) DEFAULT 50,
-  session_limit_usd NUMERIC(18, 2) DEFAULT 20,
+  daily_limit_usd NUMERIC(18, 8) DEFAULT 1,
+  session_limit_usd NUMERIC(18, 8) DEFAULT 0.5,
   self_excluded_until TIMESTAMPTZ,
   -- Age & CAPTCHA gates
   year_of_birth   INT,

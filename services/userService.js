@@ -35,8 +35,11 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
   }
 
   res = await query(
-    `INSERT INTO users (telegram_id, username, first_name, last_name, language_code, referral_code, referred_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO users (
+       telegram_id, username, first_name, last_name, language_code, referral_code, referred_by,
+       daily_limit_usd, session_limit_usd
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
     [
       id,
@@ -46,6 +49,8 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
       language_code || 'en',
       referralCode,
       referrerId,
+      config.defaultDailyLimitUsd,
+      config.defaultSessionLimitUsd,
     ]
   );
 
