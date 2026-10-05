@@ -11,6 +11,8 @@ function mainMenu() {
 function moreMenu() {
   return Markup.keyboard([
     ['💰 Balance', '📥 Deposit', '📤 Withdraw'],
+    ['🎯 Wager', '📡 Live bets'],
+    ['🏁 Contest', '⚔️ Battle'],
     ['👥 Referral', '📊 Activity'],
     ['🛡️ Responsible', 'ℹ️ How to Play'],
     ['« Main menu'],

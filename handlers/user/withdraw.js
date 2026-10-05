@@ -6,6 +6,7 @@ const { mainMenu } = require('../../utils/ui');
 const { formatUsd } = require('../../utils/helpers');
 const { Markup } = require('telegraf');
 const { v4: uuidv4 } = require('uuid');
+const wagerService = require('../../services/wagerService');
 
 /** @type {Map<number, {step:string, network?:string, address?:string}>} */
 const pendingWithdraw = new Map();
@@ -32,7 +33,7 @@ async function showWithdraw(ctx) {
   }
 
   await ctx.replyWithMarkdown(
-    `📤 *Withdraw USDT*\n\nAvailable: *${formatUsd(bal)}*\nMinimum: *${formatUsd(config.minWithdrawUsd)}*\n\nChoose network:`,
+    `📤 *Withdraw USDT*\n\nAvailable: *${formatUsd(bal)}*\nMinimum: *${formatUsd(config.minWithdrawUsd)}*\nFee: *${config.withdrawalFeePercent || 0}%* of amount\nPlay-through: *${config.playthroughPercent || 100}%* of deposits (cash tickets)\n\nChoose network:`,
     withdrawMenu()
   );
 }
@@ -110,6 +111,7 @@ async function handleWithdrawText(ctx, bot) {
     pendingWithdraw.delete(ctx.from.id);
 
     try {
+      await wagerService.assertCanWithdraw(ctx.from.id);
       const chainKey = state.network === 'erc20' ? 'usdt_erc20' : 'usdt_trc20';
       const w = await financeService.createWithdrawal(
         ctx.from.id,

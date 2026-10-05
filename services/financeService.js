@@ -34,12 +34,26 @@ async function createWithdrawal(telegramId, chain, address, amountUsd) {
   if (amountUsd < config.minWithdrawUsd) {
     throw new Error(`Minimum withdrawal is $${config.minWithdrawUsd}`);
   }
-  if (Number(user.balance_usd) < amountUsd) {
-    throw new Error('Insufficient balance');
+
+  const feePct = Number(config.withdrawalFeePercent) || 0;
+  const feeUsd = Math.round(amountUsd * (feePct / 100) * 1e6) / 1e6;
+  const totalDebit = Math.round((amountUsd + feeUsd) * 1e6) / 1e6;
+
+  if (Number(user.balance_usd) < totalDebit) {
+    throw new Error(
+      `Insufficient balance. Need $${totalDebit} (amount $${amountUsd} + ${feePct}% fee $${feeUsd})`
+    );
   }
 
-  // Debit immediately (hold)
-  await userService.debitBalance(telegramId, amountUsd, 'withdraw', null, { chain, address, status: 'pending' });
+  // Debit amount + fee (fee is house revenue)
+  await userService.debitBalance(telegramId, totalDebit, 'withdraw', null, {
+    chain,
+    address,
+    status: 'pending',
+    amount_usd: amountUsd,
+    fee_usd: feeUsd,
+    fee_percent: feePct,
+  });
 
   const rates = await getRates();
   let amountCrypto = 0;

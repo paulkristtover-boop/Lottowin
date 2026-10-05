@@ -54,6 +54,13 @@ module.exports = {
   defaultSessionLimitUsd: parseFloat(process.env.DEFAULT_SESSION_LIMIT_USD || '0.5'),
   defaultSessionLimitMins: parseInt(process.env.DEFAULT_SESSION_LIMIT_MINS || '20', 10),
   cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '1', 10),
+  playthroughPercent: parseFloat(process.env.PLAYTHROUGH_PERCENT || '100'),
+  withdrawalFeePercent: parseFloat(process.env.WITHDRAWAL_FEE_PERCENT || '2'),
+  // Contest pools (micro-scaled; rank *ratios* match operator table $2630 / $1100)
+  dailyWagerPoolUsd: parseFloat(process.env.DAILY_WAGER_POOL_USD || '5'),
+  weeklyReferralPoolUsd: parseFloat(process.env.WEEKLY_REFERRAL_POOL_USD || '2'),
+  telegramChannelId: process.env.TELEGRAM_CHANNEL_ID || '',
+  contestChannelHourly: (process.env.CONTEST_CHANNEL_HOURLY || 'true') === 'true',
 
   nodeEnv: process.env.NODE_ENV || 'development',
   webhookUrl: process.env.WEBHOOK_URL || '',

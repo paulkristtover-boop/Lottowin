@@ -111,6 +111,10 @@ bot.hears('💰 Balance', userHandlers.balance);
 bot.hears('📥 Deposit', userHandlers.deposit.showDeposit);
 bot.hears('📤 Withdraw', userHandlers.withdraw.showWithdraw);
 bot.hears('📊 Activity', userHandlers.activity);
+bot.hears(['🎯 Wager', 'Wager'], userHandlers.wager);
+bot.hears(['📡 Live bets', 'Live bets'], userHandlers.live);
+bot.hears(['⚔️ Battle', 'Referral Battle'], userHandlers.battle);
+bot.hears(['🏁 Contest', 'Daily Contest'], (ctx) => userHandlers.contest.showDaily(ctx));
 bot.hears('👥 Referral', userHandlers.referral);
 bot.hears(['ℹ️ About', 'ℹ️ How to Play'], userHandlers.about);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
@@ -160,6 +164,12 @@ bot.action('resp:timeout24', (ctx) => userHandlers.responsible.setTimeout(ctx, 2
 bot.action('resp:exclude7', (ctx) => userHandlers.responsible.setTimeout(ctx, 24 * 7));
 bot.action('resp:daily', (ctx) => userHandlers.responsible.promptLimit(ctx, 'daily'));
 bot.action('resp:session', (ctx) => userHandlers.responsible.promptLimit(ctx, 'session'));
+bot.action('ux:live', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.live(ctx); });
+bot.action('ux:contest', async (ctx) => { await ctx.answerCbQuery().catch(() => {}); return userHandlers.contest.showDaily(ctx); });
+bot.action('ux:battle', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.battle(ctx); });
+bot.action('ux:wager', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.wager(ctx); });
+bot.action('ux:activity', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.activity(ctx); });
+bot.action('ux:referral', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.referral(ctx); });
 bot.action('ux:wallet', async (ctx) => {
   try { await ctx.answerCbQuery(); } catch (_) {}
   return userHandlers.wallet.showWallet(ctx);

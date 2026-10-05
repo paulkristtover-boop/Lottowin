@@ -28,5 +28,6 @@ module.exports = async function referral(ctx) {
     `Friends referred: *${stats.rows[0].c}*\n` +
     `Commission earned: *${formatUsd(rewards.rows[0].s)}*`;
 
-  await ctx.replyWithMarkdown(text, mainMenu());
+  const { Markup } = require('telegraf');
+  await ctx.replyWithMarkdown(text, Markup.inlineKeyboard([[Markup.button.callback('⚔️ Referral battle', 'ux:battle')]]));
 };

@@ -27,5 +27,12 @@ module.exports = async (ctx) => {
     }
   }
 
-  await ctx.replyWithMarkdown(text, mainMenu());
+  const { Markup } = require('telegraf');
+  await ctx.replyWithMarkdown(
+    text,
+    Markup.inlineKeyboard([
+      [Markup.button.callback('📡 Live bets', 'ux:live')],
+      [Markup.button.callback('🎯 Wager status', 'ux:wager')],
+    ])
+  );
 };

@@ -277,3 +277,27 @@ CREATE TABLE IF NOT EXISTS daily_spend (
   spent_usd       NUMERIC(18, 6) NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, period_date)
 );
+
+
+-- Contests
+CREATE TABLE IF NOT EXISTS contest_periods (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  kind          TEXT NOT NULL,
+  period_key    TEXT NOT NULL,
+  starts_at     TIMESTAMPTZ NOT NULL,
+  ends_at       TIMESTAMPTZ NOT NULL,
+  pool_usd      NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  status        TEXT NOT NULL DEFAULT 'open',
+  settled_at    TIMESTAMPTZ,
+  UNIQUE (kind, period_key)
+);
+CREATE TABLE IF NOT EXISTS contest_payouts (
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  period_id     UUID NOT NULL REFERENCES contest_periods(id),
+  user_id       BIGINT NOT NULL,
+  rank          INT NOT NULL,
+  volume_usd    NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  prize_usd     NUMERIC(18, 6) NOT NULL DEFAULT 0,
+  credited      BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

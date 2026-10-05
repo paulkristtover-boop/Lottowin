@@ -117,3 +117,25 @@ See `docs/DEPLOY_RAILWAY.md` and `docs/DEPLOY_VERCEL.md` if present.
 ## License
 
 MIT
+
+## Play-through, fees & contests
+
+| Rule | Default |
+|------|---------|
+| Play-through | **100%** of deposits (cash ticket spend) before withdraw |
+| Withdrawal fee | **2%** of requested amount (debited with the hold) |
+| Daily wager contest pool | **$5** shared by top **100** (your rank *ratios*, scaled from $2630 table) |
+| Weekly referral pool | **$2** shared by top **20** (ratios from $1100 table) |
+
+Raise `DAILY_WAGER_POOL_USD` / `WEEKLY_REFERRAL_POOL_USD` when treasury can fund full tables.
+
+### Telegram channel (`TELEGRAM_CHANNEL_ID`)
+
+Add the bot as **admin** with post permission. The bot will:
+
+1. **Hourly** — live/recent bets (anonymized) + reminder: deposit $1 → 5 free tickets  
+2. **Hourly** — daily wager contest top snapshot  
+3. **Weekly (Mon UTC)** — referral battle snapshot after settle  
+4. **Settle jobs** — credit contest prizes to balances (not on-chain auto-pay)
+
+Users still play only in the **bot**; the channel is broadcast/social proof.

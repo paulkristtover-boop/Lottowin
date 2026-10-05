@@ -9,6 +9,10 @@ const about = require('./about');
 const support = require('./support');
 const responsible = require('./responsible');
 const wallet = require('./wallet');
+const wager = require('./wager');
+const live = require('./live');
+const battle = require('./battle');
+const contest = require('./contest');
 
 module.exports = {
   start,
@@ -22,4 +26,8 @@ module.exports = {
   support,
   responsible,
   wallet,
+  wager,
+  live,
+  battle,
+  contest,
 };
