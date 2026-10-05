@@ -25,6 +25,7 @@ module.exports = async function referral(ctx) {
     `Your link:\n\`${link}\`\n\n` +
     `• When a friend deposits ≥ ${formatUsd(config.minDepositUsd)} and places their *first real bet*, you get *${config.referralFreeTickets} free tickets*.\n` +
     `• Ongoing: *${config.referralPercent}%* of their cash ticket spend (not free tickets).\n\n` +
+    `Your public ID: *${user.public_id || '—'}*\n` +
     `Friends referred: *${stats.rows[0].c}*\n` +
     `Commission earned: *${formatUsd(rewards.rows[0].s)}*`;
 

@@ -1,5 +1,6 @@
 const { query } = require('../database');
 const config = require('../config');
+const { generatePublicId } = require('../utils/displayName');
 
 function generateReferralCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -17,10 +18,20 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
        WHERE telegram_id = $1`,
       [id, username || null, first_name || null, last_name || null, language_code || 'en']
     );
-    return (await query(`SELECT * FROM users WHERE telegram_id = $1`, [id])).rows[0];
+    let u = (await query(`SELECT * FROM users WHERE telegram_id = $1`, [id])).rows[0];
+    if (u && !u.public_id) {
+      let pid = generatePublicId();
+      await query(
+        `UPDATE users SET public_id = $2 WHERE telegram_id = $1 AND public_id IS NULL`,
+        [id, pid]
+      ).catch(() => {});
+      u = (await query(`SELECT * FROM users WHERE telegram_id = $1`, [id])).rows[0];
+    }
+    return u;
   }
 
   const referralCode = generateReferralCode();
+  let publicId = generatePublicId();
   let referrerId = null;
 
   if (referredBy) {
@@ -34,12 +45,19 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
     if (ref.rows[0]) referrerId = ref.rows[0].telegram_id;
   }
 
+  // unique public_id
+  for (let i = 0; i < 5; i++) {
+    const exists = await query(`SELECT 1 FROM users WHERE public_id = $1`, [publicId]);
+    if (!exists.rows[0]) break;
+    publicId = generatePublicId();
+  }
+
   res = await query(
     `INSERT INTO users (
        telegram_id, username, first_name, last_name, language_code, referral_code, referred_by,
-       daily_limit_usd, session_limit_usd
+       daily_limit_usd, session_limit_usd, public_id
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       id,
@@ -51,6 +69,7 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
       referrerId,
       config.defaultDailyLimitUsd,
       config.defaultSessionLimitUsd,
+      publicId,
     ]
   );
 

@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   total_wagered   NUMERIC(18, 6) NOT NULL DEFAULT 0,
   total_won       NUMERIC(18, 6) NOT NULL DEFAULT 0,
   referral_code   TEXT UNIQUE,
+  public_id       TEXT UNIQUE,
   referred_by     BIGINT,
   welcome_bonus_claimed BOOLEAN DEFAULT FALSE,
   locked_tickets INT NOT NULL DEFAULT 0,
@@ -301,3 +302,7 @@ CREATE TABLE IF NOT EXISTS contest_payouts (
   credited      BOOLEAN NOT NULL DEFAULT FALSE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS channel_joined_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS channel_last_remind_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS channel_remind_count INT NOT NULL DEFAULT 0;

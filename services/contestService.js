@@ -4,6 +4,7 @@ const userService = require('./userService');
 const { scalePrizes, DAILY_WAGER_WEIGHTS, WEEKLY_REFERRAL_WEIGHTS } = require('./contestPrizeTables');
 const { formatUsd } = require('../utils/helpers');
 const logger = require('../utils/logger');
+const { displayLabel } = require('../utils/displayName');
 
 function utcDateKey(d = new Date()) {
   return d.toISOString().slice(0, 10);
@@ -53,13 +54,13 @@ async function ensurePeriod(kind, periodKey, starts, ends, poolUsd) {
 async function getDailyWagerLeaderboard(dateKey = utcDateKey(), limit = 100) {
   const { starts, ends } = dayBounds(dateKey);
   const res = await query(
-    `SELECT t.user_id, u.username,
+    `SELECT t.user_id, u.username, u.public_id, u.referral_code,
             COALESCE(SUM(t.cost_usd), 0) AS volume
      FROM tickets t
      LEFT JOIN users u ON u.telegram_id = t.user_id
      WHERE t.created_at >= $1 AND t.created_at < $2
        AND t.cost_usd > 0
-     GROUP BY t.user_id, u.username
+     GROUP BY t.user_id, u.username, u.public_id, u.referral_code
      ORDER BY volume DESC
      LIMIT $3`,
     [starts, ends, limit]
@@ -68,14 +69,17 @@ async function getDailyWagerLeaderboard(dateKey = utcDateKey(), limit = 100) {
     rank: i + 1,
     userId: Number(r.user_id),
     username: r.username,
+    public_id: r.public_id,
+    referral_code: r.referral_code,
     volume: Number(r.volume),
+    label: displayLabel(r),
   }));
 }
 
 async function getWeeklyReferralLeaderboard(limit = 20) {
   const { starts, ends, key } = weekBounds();
   const res = await query(
-    `SELECT ref.telegram_id AS user_id, ref.username,
+    `SELECT ref.telegram_id AS user_id, ref.username, ref.public_id, ref.referral_code,
             COUNT(DISTINCT u.telegram_id)::int AS recruits,
             COALESCE(SUM(t.cost_usd), 0) AS volume
      FROM users ref
@@ -83,7 +87,7 @@ async function getWeeklyReferralLeaderboard(limit = 20) {
      LEFT JOIN tickets t ON t.user_id = u.telegram_id
        AND t.created_at >= $1 AND t.created_at < $2
        AND t.cost_usd > 0
-     GROUP BY ref.telegram_id, ref.username
+     GROUP BY ref.telegram_id, ref.username, ref.public_id, ref.referral_code
      HAVING COUNT(DISTINCT u.telegram_id) > 0
      ORDER BY volume DESC, recruits DESC
      LIMIT $3`,
@@ -97,8 +101,11 @@ async function getWeeklyReferralLeaderboard(limit = 20) {
       rank: i + 1,
       userId: Number(r.user_id),
       username: r.username,
+      public_id: r.public_id,
+      referral_code: r.referral_code,
       recruits: r.recruits,
       volume: Number(r.volume),
+      label: displayLabel(r),
     })),
   };
 }
@@ -114,7 +121,7 @@ function formatLeaderboard(title, rows, prizes, extra = '') {
     const r = rows[i];
     const p = prizes[i];
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${r.rank}`;
-    const name = r.username ? `@${r.username}` : `…${String(r.userId).slice(-4)}`;
+    const name = r.label || displayLabel(r);
     text += `${medal} ${name} · vol ${formatUsd(r.volume)} · prize ${formatUsd(p.prizeUsd)}\n`;
   }
   if (rows.length > max) text += `_…and ${rows.length - max} more ranks_\n`;

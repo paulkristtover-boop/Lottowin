@@ -2,6 +2,7 @@ const userService = require('../../services/userService');
 const { mainMenu } = require('../../utils/ui');
 const config = require('../../config');
 const { formatUsd } = require('../../utils/helpers');
+const channelMembership = require('../../services/channelMembershipService');
 
 const onboarding = new Map();
 
@@ -55,7 +56,15 @@ module.exports = async (ctx) => {
     `⚠️ 18+. Play responsibly. Set limits. Take time-outs.`;
 
   await ctx.replyWithMarkdown(welcome, mainMenu());
+  await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
+  // public id tip
+  if (fresh.public_id) {
+    await ctx.replyWithMarkdown(
+      `🪪 Your public player ID: *${fresh.public_id}*\n_Shown on live bets & contests (Telegram username hidden)._`
+    ).catch(() => {});
+  }
 };
+
 
 module.exports.handleOnboardingText = async (ctx) => {
   const state = onboarding.get(ctx.from.id);
@@ -92,11 +101,17 @@ module.exports.handleOnboardingText = async (ctx) => {
     }
     onboarding.delete(ctx.from.id);
     await userService.setCaptchaPassed(ctx.from.id);
-    await userService.applyWelcomeIfEligible(ctx.from.id);
+    const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
     await ctx.replyWithMarkdown(
       `✅ You're in!\n\nTap *Play* to choose *4/40* or *3/30*.\nEach game has its own rules & prizes.`,
       mainMenu()
     );
+    if (fresh?.public_id) {
+      await ctx.replyWithMarkdown(
+        `🪪 Your public player ID: *${fresh.public_id}*\n_Used on live bets & contests (username hidden)._`
+      ).catch(() => {});
+    }
+    await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
     return true;
   }
 

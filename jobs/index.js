@@ -1,6 +1,7 @@
 const cryptoPayment = require('../services/cryptoPaymentService');
 const channelService = require('../services/channelService');
 const contestService = require('../services/contestService');
+const channelMembership = require('../services/channelMembershipService');
 const logger = require('../utils/logger');
 
 let botRef = null;
@@ -61,7 +62,17 @@ function startJobs() {
     }
   }, 15 * 60 * 1000);
 
-  logger.info('Background jobs: deposit 30s, channel hourly, contest settle');
+  // Soft channel join reminders
+  setInterval(async () => {
+    try {
+      const r = await channelMembership.runReminderBatch(botRef, 30);
+      if (r.sent) logger.info('Channel reminders sent', r);
+    } catch (e) {
+      logger.error('Channel remind batch', e.message);
+    }
+  }, 2 * 60 * 60 * 1000);
+
+  logger.info('Background jobs: deposit 30s, channel hourly, contest settle, join soft-remind');
 }
 
 module.exports = { startJobs, setBot };

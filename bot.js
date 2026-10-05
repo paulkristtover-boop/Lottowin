@@ -9,6 +9,7 @@ const privateOnly = require('./middleware/privateOnly');
 const rateLimit = require('./middleware/rateLimit');
 const adminGuard = require('./middleware/adminGuard');
 const { startJobs, setBot } = require('./jobs');
+const channelMembership = require('./services/channelMembershipService');
 const { mainMenu } = require('./utils/ui');
 const financeService = require('./services/financeService');
 const adminKb = require('./keyboards/admin');
@@ -97,7 +98,10 @@ bot.command('liability', (ctx) => adminHandlers.liability(ctx));
 bot.command('tickets', (ctx) => adminHandlers.listSupport(ctx));
 
 // ─── User text menu (slim primary + More) ───
-bot.hears(['🎰 Play', '🎰 Play Lotto'], (ctx) => userHandlers.play.showGamePicker(ctx));
+bot.hears(['🎰 Play', '🎰 Play Lotto'], async (ctx) => {
+  await channelMembership.softRemindIfNeeded(ctx, bot).catch(() => {});
+  return userHandlers.play.showGamePicker(ctx);
+});
 bot.hears(['👛 Wallet', 'Wallet'], (ctx) => userHandlers.wallet.showWallet(ctx));
 bot.hears('🆘 Support', userHandlers.support.showSupport);
 bot.hears('📋 More', async (ctx) => {
@@ -165,6 +169,9 @@ bot.action('resp:exclude7', (ctx) => userHandlers.responsible.setTimeout(ctx, 24
 bot.action('resp:daily', (ctx) => userHandlers.responsible.promptLimit(ctx, 'daily'));
 bot.action('resp:session', (ctx) => userHandlers.responsible.promptLimit(ctx, 'session'));
 bot.action('ux:live', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.live(ctx); });
+bot.action('channel:check', async (ctx) => channelMembership.handleCheckCallback(ctx, { telegram: ctx.telegram }));
+bot.action('channel:later', async (ctx) => channelMembership.handleLaterCallback(ctx));
+
 bot.action('ux:contest', async (ctx) => { await ctx.answerCbQuery().catch(() => {}); return userHandlers.contest.showDaily(ctx); });
 bot.action('ux:battle', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.battle(ctx); });
 bot.action('ux:wager', async (ctx) => { await ctx.answerCbQuery().catch(()=>{}); return userHandlers.wager(ctx); });

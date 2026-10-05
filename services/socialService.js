@@ -4,11 +4,15 @@
 const { query } = require('../database');
 const { formatUsd, formatNumbers } = require('../utils/helpers');
 
+const { displayLabel } = require('../utils/displayName');
+
 function maskUser(row) {
-  if (row.username) return `@${String(row.username).slice(0, 12)}`;
-  const id = String(row.user_id || row.telegram_id || '');
-  if (id.length < 4) return 'Player';
-  return `Player…${id.slice(-4)}`;
+  return displayLabel({
+    public_id: row.public_id,
+    username: row.username,
+    user_id: row.user_id || row.telegram_id,
+    referral_code: row.referral_code,
+  });
 }
 
 /**
@@ -17,7 +21,7 @@ function maskUser(row) {
 async function getLiveBets(limit = 15) {
   const res = await query(
     `SELECT t.id, t.user_id, t.game, t.cost_usd, t.total_prize_usd, t.winning_numbers,
-            t.created_at, u.username
+            t.created_at, u.username, u.public_id, u.referral_code
      FROM tickets t
      LEFT JOIN users u ON u.telegram_id = t.user_id
      ORDER BY t.created_at DESC
@@ -56,6 +60,8 @@ async function getReferralBattle(days = 7, limit = 10) {
     SELECT
       ref.telegram_id AS referrer_id,
       ref.username AS referrer_username,
+      ref.public_id AS referrer_public_id,
+      ref.referral_code AS referrer_referral_code,
       COUNT(DISTINCT u.telegram_id)::int AS recruits,
       COALESCE(SUM(t.cost_usd), 0) AS volume
     FROM users ref
@@ -63,7 +69,7 @@ async function getReferralBattle(days = 7, limit = 10) {
     LEFT JOIN tickets t ON t.user_id = u.telegram_id
       AND t.created_at > NOW() - ($1::text || ' days')::interval
       AND t.cost_usd > 0
-    GROUP BY ref.telegram_id, ref.username
+    GROUP BY ref.telegram_id, ref.username, ref.public_id, ref.referral_code
     HAVING COUNT(DISTINCT u.telegram_id) > 0
     ORDER BY volume DESC, recruits DESC
     LIMIT $2
@@ -91,9 +97,12 @@ function formatReferralBattle(rows, days, myRank = null) {
   } else {
     rows.forEach((r, i) => {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
-      const name = r.referrer_username
-        ? `@${r.referrer_username}`
-        : `ID …${String(r.referrer_id).slice(-4)}`;
+      const name = displayLabel({
+        public_id: r.referrer_public_id,
+        username: r.referrer_username,
+        user_id: r.referrer_id,
+        referral_code: r.referrer_referral_code,
+      });
       text += `${medal} ${name} — ${r.recruits} recruits · vol ${formatUsd(r.volume)}\n`;
     });
   }
