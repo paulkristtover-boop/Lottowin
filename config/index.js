@@ -28,7 +28,7 @@ module.exports = {
   // Economy (USD)
   minDepositUsd: parseFloat(process.env.MIN_DEPOSIT_USD || '1'),
   minWithdrawUsd: parseFloat(process.env.MIN_WITHDRAW_USD || '1'),
-  playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.00001'),
+  playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.0001'),
   maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
   // Free tickets (cash bonuses disabled)
   welcomeBonusUsd: 0,
@@ -38,8 +38,8 @@ module.exports = {
   referralPercent: parseFloat(process.env.REFERRAL_COMMISSION_PERCENT || process.env.REFERRAL_PERCENT || '5'),
 
   // Liability & risk (startup-safe)
-  maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '0.10'),     // hard cap per line (micro)
-  maxPrizePerTicketUsd: parseFloat(process.env.MAX_PRIZE_PER_TICKET_USD || '1'),    // hard cap per ticket (micro)
+  maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '1'),     // hard cap per line (micro)
+  maxPrizePerTicketUsd: parseFloat(process.env.MAX_PRIZE_PER_TICKET_USD || '10'),    // hard cap per ticket (micro)
   dailyLiabilityCapUsd: parseFloat(process.env.DAILY_LIABILITY_CAP_USD || '50'),    // max prizes paid per UTC day (micro)
   maxBalanceUsd: parseFloat(process.env.MAX_BALANCE_USD || '500'),                  // soft wallet cap
 
@@ -69,15 +69,15 @@ module.exports = {
   botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || 'LottoWinBot',
 
   /**
-   * Prize table — micro USDT (stake $0.00001).
+   * Prize table — micro USDT (stake $0.0001).
    * Converted from original Naira structure; Match 1 now pays.
    * Tiered grader may reduce large wins if liability caps are hit.
    */
   /**
-   * Micro USDT: $0.00001 / line.
-   * AfriMillions-style instant ratio (₦100 → ₦1M top = 10,000×) applied to micro stake.
-   * 4/40: 10000× / 50× / 5× / 1.5× → $0.10 / $0.0005 / $0.00005 / $0.000015
-   * 3/30: 1000× / 15× / 1× → $0.01 / $0.00015 / $0.00001
+   * Micro USDT: $0.0001 / line.
+   * Instant ratio (₦100 → ₦1M top = 10,000×) applied to micro stake.
+   * 4/40: 10000× / 50× / 5× / 1.5× → $1 / $0.005 / $0.0005 / $0.00015
+   * 3/30: 1000× / 15× / 1× → $0.10 / $0.0015 / $0.0001
    */
   games: {
     '4_40': {
@@ -86,10 +86,10 @@ module.exports = {
       pick: 4,
       from: 1,
       to: 40,
-      playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.00001'),
+      playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.0001'),
       maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
-      prizesUsd: { 4: 0.1, 3: 0.0005, 2: 0.00005, 1: 0.000015, 0: 0 },
-      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '0.10'),
+      prizesUsd: { 4: 1, 3: 0.005, 2: 0.0005, 1: 0.00015, 0: 0 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '1'),
       howToPlay:
         '🎯 *How to play Insta Win 4/40*\n\n' +
         'Instant micro lottery — results in seconds.\n\n' +
@@ -97,14 +97,14 @@ module.exports = {
         '*1. Choose numbers*\n' +
         'Pick *exactly 4* from *1–40* (or Quick Pick).\n\n' +
         '*2. Place your bet*\n' +
-        'Confirm to play. Stake is *$0.00001 per line* (free tickets used first).\n\n' +
+        'Confirm to play. Stake is *$0.0001 per line* (free tickets used first).\n\n' +
         '*3. Instant result*\n' +
         'Winning numbers are revealed immediately.\n\n' +
-        '*Prizes (per line)* — 10,000× top (AfriMillions-style)\n' +
-        '• Match 4 → *$0.10*\n' +
-        '• Match 3 → *$0.0005*\n' +
-        '• Match 2 → *$0.00005*\n' +
-        '• Match 1 → *$0.000015*\n\n' +
+        '*Prizes (per line)* — 10,000× top prize\n' +
+        '• Match 4 → *$1.00*\n' +
+        '• Match 3 → *$0.005*\n' +
+        '• Match 2 → *$0.0005*\n' +
+        '• Match 1 → *$0.00015*\n\n' +
         'Up to 10 lines. 18+ · Play responsibly.',
     },
     '3_30': {
@@ -113,10 +113,10 @@ module.exports = {
       pick: 3,
       from: 1,
       to: 30,
-      playCostUsd: parseFloat(process.env.PLAY_COST_3_30_USD || process.env.PLAY_COST_USD || '0.00001'),
+      playCostUsd: parseFloat(process.env.PLAY_COST_3_30_USD || process.env.PLAY_COST_USD || '0.0001'),
       maxLines: parseInt(process.env.MAX_LINES_3_30 || '10', 10),
-      prizesUsd: { 3: 0.01, 2: 0.00015, 1: 0.00001, 0: 0 },
-      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || '0.01'),
+      prizesUsd: { 3: 0.1, 2: 0.0015, 1: 0.0001, 0: 0 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || '0.1'),
       howToPlay:
         '🎲 *How to play Insta Win 3/30*\n\n' +
         'Pick *3* from *1–30*. Instant micro result.\n\n' +
@@ -124,22 +124,22 @@ module.exports = {
         '*1. Choose numbers*\n' +
         'Select *exactly 3* from *1–30* (or Quick Pick).\n\n' +
         '*2. Place your bet*\n' +
-        'Confirm to play. Stake is *$0.00001 per line* (free tickets used first).\n\n' +
+        'Confirm to play. Stake is *$0.0001 per line* (free tickets used first).\n\n' +
         '*3. Instant result*\n' +
         'Three winning numbers shown right away.\n\n' +
         '*Prizes (per line)*\n' +
-        '• Match 3 → *$0.01*\n' +
-        '• Match 2 → *$0.00015*\n' +
-        '• Match 1 → *$0.00001*\n\n' +
+        '• Match 3 → *$0.10*\n' +
+        '• Match 2 → *$0.0015*\n' +
+        '• Match 1 → *$0.0001*\n\n' +
         'Up to 10 lines. 18+ · Play responsibly.',
     },
   },
   // Legacy alias (4/40)
   prizesUsd: {
-    4: 0.1,
-    3: 0.0005,
-    2: 0.00005,
-    1: 0.000015,
+    4: 1,
+    3: 0.005,
+    2: 0.0005,
+    1: 0.00015,
     0: 0,
   },
 

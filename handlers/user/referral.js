@@ -1,14 +1,14 @@
 const userService = require('../../services/userService');
 const config = require('../../config');
-const { mainMenu } = require('../../utils/ui');
 const { formatUsd } = require('../../utils/helpers');
 const { query } = require('../../database');
+const { Markup } = require('telegraf');
 
 module.exports = async function referral(ctx) {
   const user = await userService.getUser(ctx.from.id);
   if (!user) return ctx.reply('Please /start first');
 
-  const botUser = config.botUsername || 'LottoWinBot';
+  const botUser = config.botUsername || process.env.NEXT_PUBLIC_BOT_USERNAME || 'LottoWinBot';
   const link = `https://t.me/${botUser}?start=${user.referral_code}`;
 
   const stats = await query(
@@ -22,13 +22,17 @@ module.exports = async function referral(ctx) {
 
   const text =
     `👥 *Refer & Earn*\n\n` +
+    `Share the spark. When friends play for real, you climb the battle board *and* earn.\n\n` +
     `Your link:\n\`${link}\`\n\n` +
-    `• When a friend deposits ≥ ${formatUsd(config.minDepositUsd)} and places their *first real bet*, you get *${config.referralFreeTickets} free tickets*.\n` +
-    `• Ongoing: *${config.referralPercent}%* of their cash ticket spend (not free tickets).\n\n` +
-    `Your public ID: *${user.public_id || '—'}*\n` +
-    `Friends referred: *${stats.rows[0].c}*\n` +
-    `Commission earned: *${formatUsd(rewards.rows[0].s)}*`;
+    `🎁 *${config.referralFreeTickets}* free tickets when they deposit ≥ *${formatUsd(config.minDepositUsd)}* and place their *first cash bet*\n` +
+    `💸 *${config.referralPercent}%* of their ongoing *cash* ticket spend\n` +
+    `⚔️ Weekly *Referral battle* — top referrers share a prize pool\n\n` +
+    `Friends joined: *${stats.rows[0].c}*\n` +
+    `Commission earned: *${formatUsd(rewards.rows[0].s)}*\n\n` +
+    `_Free tickets don't count as their cash volume — real play does._`;
 
-  const { Markup } = require('telegraf');
-  await ctx.replyWithMarkdown(text, Markup.inlineKeyboard([[Markup.button.callback('⚔️ Referral battle', 'ux:battle')]]));
+  await ctx.replyWithMarkdown(
+    text,
+    Markup.inlineKeyboard([[Markup.button.callback('⚔️ Referral battle', 'ux:battle')]])
+  );
 };

@@ -13,12 +13,13 @@ module.exports = async function showBattle(ctx) {
       `⚔️ *Weekly referral battle*`,
       rows,
       prizes,
-      `Week *${key}*\nPool *${formatUsd(config.weeklyReferralPoolUsd)}* · ranked by *friends' cash ticket volume*\n` +
-        `Top 20 share the pool. Settles weekly (UTC).\n\n`
+      `Week *${key}*\nPool *${formatUsd(config.weeklyReferralPoolUsd)}* · ranked by *friends' cash volume*\n` +
+        `Top 20 share the pool · settles weekly (UTC)\n\n`
     );
-    if (mine) text += `\nYou: *#${mine.rank}* · vol ${formatUsd(mine.volume)}`;
-    else text += `\nInvite friends who deposit & play cash tickets.`;
-    text += `\n\nAlso: 5 free tickets after their path + 5% commission on their cash play.`;
+    if (mine) text += `\n🔥 You: *#${mine.rank}* · vol ${formatUsd(mine.volume)}`;
+    else text += `\n📣 Share your link — friends who *deposit & play cash* power your rank.`;
+    text +=
+      `\n\n🎁 Also earn *${config.referralFreeTickets}* free tickets + *${config.referralPercent}%* commission the usual way.`;
     await ctx.replyWithMarkdown(
       text,
       Markup.inlineKeyboard([

@@ -36,7 +36,7 @@ async function post(bot, text, extra = {}) {
 async function postHourlyLiveBets(bot) {
   const rows = await socialService.getLiveBets(12);
   let body = socialService.formatLiveBets(rows);
-  body += `\n\n🎰 Play in bot · Deposit $1 → 5 free tickets unlock\n18+ Play responsibly`;
+  body += `\n\n🎰 Play in the bot · Deposit ${formatUsd(config.minDepositUsd)} → ${config.welcomeFreeTickets} free tickets\n18+ Play responsibly`;
   return post(bot, body);
 }
 

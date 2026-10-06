@@ -2,6 +2,7 @@ const lottoService = require('../../services/lottoService');
 const userService = require('../../services/userService');
 const config = require('../../config');
 const { playMenu, numberGrid, mainMenu, gamePicker, afterPlayMenu } = require('../../utils/ui');
+const copy = require('../../utils/copy');
 const { formatUsd, formatNumbers } = require('../../utils/helpers');
 
 const sessions = new Map();
@@ -18,20 +19,7 @@ function clearSession(userId) {
 }
 
 async function showGamePicker(ctx) {
-  const user = await userService.getUser(ctx.from.id);
-  const g440 = config.games['4_40'];
-  const g330 = config.games['3_30'];
-  const text =
-    `🎰 *Choose a game*\n\n` +
-    `*Insta Win 4/40*\n` +
-    `Pick 4 from 1–40 · ${formatUsd(g440.playCostUsd)}/line\n` +
-    `Match 4 → ${formatUsd(g440.prizesUsd[4])} · Match 3 → ${formatUsd(g440.prizesUsd[3])} · Match 2 → ${formatUsd(g440.prizesUsd[2])} · Match 1 → ${formatUsd(g440.prizesUsd[1])}\n\n` +
-    `*Insta Win 3/30*\n` +
-    `Pick 3 from 1–30 · ${formatUsd(g330.playCostUsd)}/line\n` +
-    `Match 3 → ${formatUsd(g330.prizesUsd[3])} · Match 2 → ${formatUsd(g330.prizesUsd[2])} · Match 1 → ${formatUsd(g330.prizesUsd[1])}\n\n` +
-    `Cash: *${formatUsd(user?.balance_usd || 0)}* · Free tickets: *${Number(user?.unlocked_tickets) || 0}*`;
-
-  await ctx.replyWithMarkdown(text, gamePicker());
+  await ctx.replyWithMarkdown(copy.gamePickerText(), gamePicker());
 }
 
 async function selectGame(ctx, gameId) {
@@ -44,16 +32,7 @@ async function selectGame(ctx, gameId) {
     await ctx.answerCbQuery();
   } catch (_) {}
   const game = lottoService.getGame(gameId);
-  // Brief rules strip before builder (full howto via 📖 buttons)
-  const tip =
-    `*${game.name}*
-` +
-    `Pick *${game.pick}* from *${game.from}–${game.to}* · ${require('../../utils/helpers').formatUsd(game.playCostUsd)}/line
-` +
-    (gameId === '4_40'
-      ? 'Prizes: Match 4 → $100 · 3 → $5 · 2 → $0.50 · 1 → $0.15'
-      : 'Prizes: Match 3 → $10 · 2 → $0.15 · 1 → $0.05');
-  await ctx.replyWithMarkdown(tip);
+  await ctx.replyWithMarkdown(copy.selectGameBlurb(gameId));
   return showPlayScreen(ctx);
 }
 
@@ -71,14 +50,14 @@ async function showPlayScreen(ctx) {
   text += `\nCash: *${formatUsd(user?.balance_usd || 0)}* · Free tickets: *${free}*\n\n`;
 
   if (s.lines.length === 0) {
-    text += `_No lines yet. Add a line or use Quick Pick._\n`;
+    text += `_Empty slip — Quick Pick for speed, or build line by line._\n`;
   } else {
     s.lines.forEach((line, i) => {
       text += `${i + 1}. ${formatNumbers(line)}\n`;
     });
   }
 
-  text += `\nPick *${game.pick}* numbers from ${game.from}–${game.to}.`;
+  text += `\n🎯 Need *${game.pick}* numbers from *${game.from}–${game.to}*.`;
 
   await ctx.replyWithMarkdown(text, playMenu());
 }

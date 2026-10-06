@@ -68,11 +68,11 @@ async function showWallet(ctx) {
 
     const text =
       `👛 *Wallet*\n\n` +
-      `Cash balance: *${formatUsd(user.balance_usd)}*\n` +
+      `💰 Cash: *${formatUsd(user.balance_usd)}*\n` +
       `Unlocked free tickets: *${unlocked}*\n` +
       `Locked free tickets: *${locked}*\n` +
       progress +
-      `\nPlay cost: ${formatUsd(config.playCostUsd)} / line\n` +
+      `\nStake: ${formatUsd(config.playCostUsd)} / line\n` +
       `Min deposit: ${formatUsd(config.minDepositUsd)} · Min withdraw: ${formatUsd(config.minWithdrawUsd)}\n\n` +
       `_Free tickets are used first. Only real cash is withdrawable._`;
 

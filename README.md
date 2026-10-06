@@ -15,7 +15,7 @@ Telegram bot + Postgres + Next.js admin CMS. Instant draws for **4/40** and **3/
 
 | Setting | Default |
 |---------|---------|
-| Line stake | **$0.00001** |
+| Line stake | **$0.0001** |
 | Min deposit / withdraw | **$1** |
 | Daily player spend limit | **$1** |
 | Session spend limit | **$0.50** / 20 min |
@@ -24,8 +24,8 @@ Telegram bot + Postgres + Next.js admin CMS. Instant draws for **4/40** and **3/
 
 ### Prizes (per line)
 
-**4/40** — Match 4 **$0.10** · 3 **$0.0005** · 2 **$0.00005** · 1 **$0.000015**  
-**3/30** — Match 3 **$0.01** · 2 **$0.00015** · 1 **$0.00001**
+**4/40** — Match 4 **$0.10** · 3 **$0.0005** · 2 **$0.00005** · 1 **$0.00015**  
+**3/30** — Match 3 **$0.01** · 2 **$0.00015** · 1 **$0.0001**
 
 Free tickets: 5 welcome (unlock after first ≥ $1 deposit), 3 referral after first cash bet; 5% referral commission on cash play.
 

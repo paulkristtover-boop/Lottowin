@@ -2,6 +2,7 @@ const userService = require('../../services/userService');
 const { mainMenu } = require('../../utils/ui');
 const config = require('../../config');
 const { formatUsd } = require('../../utils/helpers');
+const copy = require('../../utils/copy');
 const channelMembership = require('../../services/channelMembershipService');
 
 const onboarding = new Map();
@@ -40,20 +41,7 @@ module.exports = async (ctx) => {
   const g440 = config.games['4_40'];
   const g330 = config.games['3_30'];
 
-  const welcome =
-    `🎰 *Welcome to Insta Win!*\n\n` +
-    `Instant lottery — results in seconds.\n\n` +
-    `🎯 *${g440.name}* — pick ${g440.pick} from ${g440.from}–${g440.to}\n` +
-    `   Top prize: *${formatUsd(g440.prizesUsd[4])}* · ${formatUsd(g440.playCostUsd)}/line\n\n` +
-    `🎲 *${g330.name}* — pick ${g330.pick} from ${g330.from}–${g330.to}\n` +
-    `   Top prize: *${formatUsd(g330.prizesUsd[3])}* · ${formatUsd(g330.playCostUsd)}/line\n\n` +
-    `💰 Cash: *${formatUsd(fresh.balance_usd)}*\n` +
-    `🎫 Free tickets: *${unlocked}* unlocked` +
-    (locked > 0 ? ` · *${locked}* locked` : '') +
-    `\n\n` +
-    `Deposit ≥ ${formatUsd(config.minDepositUsd)} to unlock welcome free tickets.\n` +
-    `Tap *Play* → choose a game (each has its own How to Play).\n\n` +
-    `⚠️ 18+. Play responsibly. Set limits. Take time-outs.`;
+  const welcome = copy.welcome(fresh);
 
   await ctx.replyWithMarkdown(welcome, mainMenu());
   await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});

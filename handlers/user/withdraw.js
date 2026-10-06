@@ -33,7 +33,10 @@ async function showWithdraw(ctx) {
   }
 
   await ctx.replyWithMarkdown(
-    `📤 *Withdraw USDT*\n\nAvailable: *${formatUsd(bal)}*\nMinimum: *${formatUsd(config.minWithdrawUsd)}*\nFee: *${config.withdrawalFeePercent || 0}%* of amount\nPlay-through: *${config.playthroughPercent || 100}%* of deposits (cash tickets)\n\nChoose network:`,
+    `📤 *Cash out USDT*\n\n` +
+      `Available *${formatUsd(bal)}* · min *${formatUsd(config.minWithdrawUsd)}*\n` +
+      `Fee *${config.withdrawalFeePercent || 0}%* · play-through *${config.playthroughPercent || 100}%* of deposits\n\n` +
+      `Choose network (manual payout after review):`,
     withdrawMenu()
   );
 }

@@ -33,11 +33,12 @@ async function showDeposit(ctx) {
   depositFlow.delete(ctx.from.id);
   const pending = await cryptoPayment.getPendingForUser(ctx.from.id);
   let text =
-    `📥 *Deposit USDT*\n\n` +
-    `• *TRC-20* (Tron) — lower fees\n` +
+    `📥 *Fuel your balance*\n\n` +
+    `Send *USDT* on:\n` +
+    `• *TRC-20* (Tron) — usually cheaper gas\n` +
     `• *ERC-20* (Ethereum)\n\n` +
-    `Min: ${formatUsd(config.minDepositUsd)}\n` +
-    `You get a *unique exact amount*. Payment is detected automatically.`;
+    `Minimum *${formatUsd(config.minDepositUsd)}* · first deposit unlocks *${config.welcomeFreeTickets}* free tickets\n\n` +
+    `You'll get a *unique exact amount* — send that amount only. We detect it automatically.`;
 
   if (pending) {
     text += `\n\n` + pendingReminderText(pending);

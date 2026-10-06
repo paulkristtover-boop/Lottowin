@@ -1,18 +1,20 @@
 const userService = require('../../services/userService');
-const { formatUsd } = require('../../utils/helpers');
+const config = require('../../config');
 const { mainMenu } = require('../../utils/ui');
+const { formatUsd } = require('../../utils/helpers');
 
-module.exports = async function balance(ctx) {
+module.exports = async (ctx) => {
   const user = await userService.getUser(ctx.from.id);
   if (!user) return ctx.reply('Please /start first');
+  const locked = Number(user.locked_tickets) || 0;
+  const unlocked = Number(user.unlocked_tickets) || 0;
   const text =
-    `💰 *Balance*\n\n` +
+    `💰 *Your balance*\n\n` +
     `Cash: *${formatUsd(user.balance_usd)}*\n` +
-    `Free tickets: *${Number(user.unlocked_tickets) || 0}* unlocked · ` +
-    `*${Number(user.locked_tickets) || 0}* locked\n\n` +
-    `Deposited: ${formatUsd(user.total_deposited)}\n` +
-    `Wagered: ${formatUsd(user.total_wagered)}\n` +
-    `Won: ${formatUsd(user.total_won)}\n\n` +
-    `Use /wallet to deposit and unlock free tickets.`;
+    `🎫 Free tickets: *${unlocked}* unlocked` +
+    (locked > 0 ? ` · *${locked}* locked` : '') +
+    `\n\n` +
+    `Play from *${formatUsd(config.playCostUsd)}*/line · min deposit *${formatUsd(config.minDepositUsd)}*\n` +
+    `Open *Wallet* to top up and unlock free tickets.`;
   await ctx.replyWithMarkdown(text, mainMenu());
 };

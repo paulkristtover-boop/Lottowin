@@ -9,7 +9,7 @@ export default function SettingsPage() {
           <tbody>
             <tr>
               <td>PLAY_COST_USD</td>
-              <td>$0.00001 / line (both games)</td>
+              <td>$0.0001 / line (both games)</td>
             </tr>
             <tr>
               <td>MIN_DEPOSIT_USD</td>
@@ -47,7 +47,7 @@ export default function SettingsPage() {
         </table>
       </div>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Games — AfriMillions-style multiples on micro stake</h3>
+        <h3 style={{ marginTop: 0 }}>Games — prize multiples on micro stake</h3>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
           Scaled from ₦100 line ratios (10,000× / 50× / 5× / 1.5× for 4/40; 1,000× / 15× / 1× for 3/30).
         </p>
@@ -63,12 +63,12 @@ export default function SettingsPage() {
             <tr>
               <td>Insta Win 4/40</td>
               <td>4 from 1–40</td>
-              <td>Match 4 $0.10 · 3 $0.0005 · 2 $0.00005 · 1 $0.000015</td>
+              <td>Match 4 $1.00 · 3 $0.005 · 2 $0.0005 · 1 $0.00015</td>
             </tr>
             <tr>
               <td>Insta Win 3/30</td>
               <td>3 from 1–30</td>
-              <td>Match 3 $0.01 · 2 $0.00015 · 1 $0.00001</td>
+              <td>Match 3 $0.10 · 2 $0.0015 · 1 $0.0001</td>
             </tr>
           </tbody>
         </table>

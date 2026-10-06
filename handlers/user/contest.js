@@ -1,6 +1,6 @@
 const contestService = require('../../services/contestService');
 const config = require('../../config');
-const { scalePrizes, DAILY_WAGER_WEIGHTS, WEEKLY_REFERRAL_WEIGHTS } = require('../../services/contestPrizeTables');
+const { scalePrizes, DAILY_WAGER_WEIGHTS } = require('../../services/contestPrizeTables');
 const { formatUsd } = require('../../utils/helpers');
 const { Markup } = require('telegraf');
 
@@ -13,12 +13,14 @@ async function showDaily(ctx) {
     `🏁 *Daily wager contest*`,
     board,
     prizes,
-    `UTC day *${key}*\nPool *${formatUsd(config.dailyWagerPoolUsd)}* (top 100 share, ranked by cash ticket volume)\n` +
-      `Resets 00:00 UTC. Prizes auto-credited after settle.\n\n`
+    `UTC day *${key}*\nPrize pool *${formatUsd(config.dailyWagerPoolUsd)}* — top 100 share by *cash ticket volume*\n` +
+      `Resets 00:00 UTC · winners auto-credited\n\n`
   );
-  if (mine) text += `\nYou: *#${mine.rank}* · ${formatUsd(mine.volume)}`;
-  else text += `\nYou are not on the board yet — play *cash* tickets.`;
-  text += `\n\nDeposit ≥ $1 unlocks *5 free tickets* (separate from contest volume).`;
+  if (mine) text += `\n🔥 You: *#${mine.rank}* · ${formatUsd(mine.volume)}`;
+  else text += `\n🚀 You're not on the board yet — every *cash* line counts.`;
+  text +=
+    `\n\n💎 Deposit ≥ *${formatUsd(config.minDepositUsd)}* unlocks *${config.welcomeFreeTickets}* free tickets ` +
+    `(great for practice — contest ranks use *cash* play only).`;
   await ctx.replyWithMarkdown(
     text,
     Markup.inlineKeyboard([
