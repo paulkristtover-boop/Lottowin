@@ -47,7 +47,7 @@ export default function SettingsPage() {
         </table>
       </div>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Games — prize multiples on micro stake</h3>
+        <h3 style={{ marginTop: 0 }}>Games — prizes auto-scale with PLAY_COST_USD</h3>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
           Scaled from ₦100 line ratios (10,000× / 50× / 5× / 1.5× for 4/40; 1,000× / 15× / 1× for 3/30).
         </p>

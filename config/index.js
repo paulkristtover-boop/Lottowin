@@ -7,6 +7,28 @@ const parseIds = (str) =>
     .filter(Boolean)
     .map(Number);
 
+/** Stake from env — prizes scale from this via fixed multiples. */
+const PLAY_COST_USD = parseFloat(process.env.PLAY_COST_USD || '0.0001');
+const PLAY_COST_3_30 = parseFloat(
+  process.env.PLAY_COST_3_30_USD || process.env.PLAY_COST_USD || '0.0001'
+);
+
+/** Fixed payout multiples (prize = multiple × line stake). */
+const MULTIPLES_4_40 = { 4: 10000, 3: 50, 2: 5, 1: 1.5, 0: 0 };
+const MULTIPLES_3_30 = { 3: 1000, 2: 15, 1: 1, 0: 0 };
+
+function prizesFromCost(cost, multiples) {
+  const out = {};
+  for (const [k, m] of Object.entries(multiples)) {
+    const n = Number(k);
+    out[n] = Math.round(Number(cost) * Number(m) * 1e8) / 1e8;
+  }
+  return out;
+}
+
+const PRIZES_4_40 = prizesFromCost(PLAY_COST_USD, MULTIPLES_4_40);
+const PRIZES_3_30 = prizesFromCost(PLAY_COST_3_30, MULTIPLES_3_30);
+
 module.exports = {
   botToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
   adminIds: parseIds(process.env.ADMIN_IDS),
@@ -28,7 +50,7 @@ module.exports = {
   // Economy (USD)
   minDepositUsd: parseFloat(process.env.MIN_DEPOSIT_USD || '1'),
   minWithdrawUsd: parseFloat(process.env.MIN_WITHDRAW_USD || '1'),
-  playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.0001'),
+  playCostUsd: PLAY_COST_USD,
   maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
   // Free tickets (cash bonuses disabled)
   welcomeBonusUsd: 0,
@@ -37,11 +59,13 @@ module.exports = {
   referralFreeTickets: parseInt(process.env.REFERRAL_FREE_TICKETS || '3', 10),
   referralPercent: parseFloat(process.env.REFERRAL_COMMISSION_PERCENT || process.env.REFERRAL_PERCENT || '5'),
 
-  // Liability & risk (startup-safe)
-  maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '1'),     // hard cap per line (micro)
-  maxPrizePerTicketUsd: parseFloat(process.env.MAX_PRIZE_PER_TICKET_USD || '10'),    // hard cap per ticket (micro)
-  dailyLiabilityCapUsd: parseFloat(process.env.DAILY_LIABILITY_CAP_USD || '50'),    // max prizes paid per UTC day (micro)
-  maxBalanceUsd: parseFloat(process.env.MAX_BALANCE_USD || '500'),                  // soft wallet cap
+  // Liability & risk — defaults track top prize (override with env if needed)
+  maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || String(PRIZES_4_40[4])),
+  maxPrizePerTicketUsd: parseFloat(
+    process.env.MAX_PRIZE_PER_TICKET_USD || String(Math.max(PRIZES_4_40[4] * 10, PRIZES_4_40[4]))
+  ),
+  dailyLiabilityCapUsd: parseFloat(process.env.DAILY_LIABILITY_CAP_USD || '50'),
+  maxBalanceUsd: parseFloat(process.env.MAX_BALANCE_USD || '500'),
 
   // Gaming tax (e.g. 11% of GGR)
   gamingTaxRate: parseFloat(process.env.GAMING_TAX_RATE || '0.11'),
@@ -56,7 +80,6 @@ module.exports = {
   cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '1', 10),
   playthroughPercent: parseFloat(process.env.PLAYTHROUGH_PERCENT || '100'),
   withdrawalFeePercent: parseFloat(process.env.WITHDRAWAL_FEE_PERCENT || '2'),
-  // Contest pools (micro-scaled; rank *ratios* match operator table $2630 / $1100)
   dailyWagerPoolUsd: parseFloat(process.env.DAILY_WAGER_POOL_USD || '5'),
   weeklyReferralPoolUsd: parseFloat(process.env.WEEKLY_REFERRAL_POOL_USD || '2'),
   telegramChannelId: process.env.TELEGRAM_CHANNEL_ID || '',
@@ -65,20 +88,19 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   webhookUrl: process.env.WEBHOOK_URL || '',
   port: parseInt(process.env.PORT || '3000', 10),
-  cmsSecret: process.env.CMS_SECRET || 'change-me',
-  botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || 'LottoWinBot',
+  cmsSecret: process.env.CMS_SECRET || 'change_me_long_random_string',
+  botUsername: process.env.BOT_USERNAME || process.env.NEXT_PUBLIC_BOT_USERNAME || '',
 
   /**
-   * Prize table — micro USDT (stake $0.0001).
-   * Converted from original Naira structure; Match 1 now pays.
-   * Tiered grader may reduce large wins if liability caps are hit.
+   * Prize multiples (fixed). Dollar prizes = multiple × playCostUsd.
+   * 4/40: 10000× / 50× / 5× / 1.5×
+   * 3/30: 1000× / 15× / 1×
    */
-  /**
-   * Micro USDT: $0.0001 / line.
-   * Instant ratio (₦100 → ₦1M top = 10,000×) applied to micro stake.
-   * 4/40: 10000× / 50× / 5× / 1.5× → $1 / $0.005 / $0.0005 / $0.00015
-   * 3/30: 1000× / 15× / 1× → $0.10 / $0.0015 / $0.0001
-   */
+  prizeMultiples: {
+    '4_40': { ...MULTIPLES_4_40 },
+    '3_30': { ...MULTIPLES_3_30 },
+  },
+
   games: {
     '4_40': {
       id: '4_40',
@@ -86,26 +108,11 @@ module.exports = {
       pick: 4,
       from: 1,
       to: 40,
-      playCostUsd: parseFloat(process.env.PLAY_COST_USD || '0.0001'),
+      playCostUsd: PLAY_COST_USD,
       maxLines: parseInt(process.env.MAX_LINES_PER_TICKET || '10', 10),
-      prizesUsd: { 4: 1, 3: 0.005, 2: 0.0005, 1: 0.00015, 0: 0 },
-      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || '1'),
-      howToPlay:
-        '🎯 *How to play Insta Win 4/40*\n\n' +
-        'Instant micro lottery — results in seconds.\n\n' +
-        '*Goal:* Match your 4 numbers to the 4 winning numbers. Even *1 match* wins!\n\n' +
-        '*1. Choose numbers*\n' +
-        'Pick *exactly 4* from *1–40* (or Quick Pick).\n\n' +
-        '*2. Place your bet*\n' +
-        'Confirm to play. Stake is *$0.0001 per line* (free tickets used first).\n\n' +
-        '*3. Instant result*\n' +
-        'Winning numbers are revealed immediately.\n\n' +
-        '*Prizes (per line)* — 10,000× top prize\n' +
-        '• Match 4 → *$1.00*\n' +
-        '• Match 3 → *$0.005*\n' +
-        '• Match 2 → *$0.0005*\n' +
-        '• Match 1 → *$0.00015*\n\n' +
-        'Up to 10 lines. 18+ · Play responsibly.',
+      prizeMultiples: { ...MULTIPLES_4_40 },
+      prizesUsd: { ...PRIZES_4_40 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_PER_LINE_USD || String(PRIZES_4_40[4])),
     },
     '3_30': {
       id: '3_30',
@@ -113,35 +120,16 @@ module.exports = {
       pick: 3,
       from: 1,
       to: 30,
-      playCostUsd: parseFloat(process.env.PLAY_COST_3_30_USD || process.env.PLAY_COST_USD || '0.0001'),
-      maxLines: parseInt(process.env.MAX_LINES_3_30 || '10', 10),
-      prizesUsd: { 3: 0.1, 2: 0.0015, 1: 0.0001, 0: 0 },
-      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || '0.1'),
-      howToPlay:
-        '🎲 *How to play Insta Win 3/30*\n\n' +
-        'Pick *3* from *1–30*. Instant micro result.\n\n' +
-        '*Goal:* Match the winning numbers. Even *1 match* pays!\n\n' +
-        '*1. Choose numbers*\n' +
-        'Select *exactly 3* from *1–30* (or Quick Pick).\n\n' +
-        '*2. Place your bet*\n' +
-        'Confirm to play. Stake is *$0.0001 per line* (free tickets used first).\n\n' +
-        '*3. Instant result*\n' +
-        'Three winning numbers shown right away.\n\n' +
-        '*Prizes (per line)*\n' +
-        '• Match 3 → *$0.10*\n' +
-        '• Match 2 → *$0.0015*\n' +
-        '• Match 1 → *$0.0001*\n\n' +
-        'Up to 10 lines. 18+ · Play responsibly.',
+      playCostUsd: PLAY_COST_3_30,
+      maxLines: parseInt(process.env.MAX_LINES_3_30 || process.env.MAX_LINES_PER_TICKET || '10', 10),
+      prizeMultiples: { ...MULTIPLES_3_30 },
+      prizesUsd: { ...PRIZES_3_30 },
+      maxPrizePerLineUsd: parseFloat(process.env.MAX_PRIZE_3_30_LINE_USD || String(PRIZES_3_30[3])),
     },
   },
-  // Legacy alias (4/40)
-  prizesUsd: {
-    4: 1,
-    3: 0.005,
-    2: 0.0005,
-    1: 0.00015,
-    0: 0,
-  },
+
+  // Legacy alias (4/40 scaled prizes)
+  prizesUsd: { ...PRIZES_4_40 },
 
   // Channels / support
   supportUsername: process.env.SUPPORT_USERNAME || 'LottoWinSupport',
