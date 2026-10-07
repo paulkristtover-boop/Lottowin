@@ -8,6 +8,8 @@ const banCheck = require('./middleware/banCheck');
 const privateOnly = require('./middleware/privateOnly');
 const rateLimit = require('./middleware/rateLimit');
 const adminGuard = require('./middleware/adminGuard');
+const maintenance = require('./middleware/maintenance');
+const termsGate = require('./middleware/termsGate');
 const { startJobs, setBot } = require('./jobs');
 const channelMembership = require('./services/channelMembershipService');
 const { mainMenu } = require('./utils/ui');
@@ -25,6 +27,8 @@ bot.use(session());
 bot.use(privateOnly);
 bot.use(rateLimit(30, 60000));
 bot.use(banCheck);
+bot.use(maintenance);
+bot.use(termsGate);
 bot.use(adminGuard);
 
 // ─── Start: admin gets panel, users get onboarding ───
@@ -48,6 +52,48 @@ bot.command('support', userHandlers.support.showSupport);
 bot.command('responsible', userHandlers.responsible.show);
 
 // ─── Admin commands ───
+
+bot.command('maintenance', async (ctx) => {
+  if (!adminHandlers.isAdmin(ctx)) return;
+  const parts = (ctx.message.text || '').trim().split(/\s+/);
+  const arg = (parts[1] || '').toLowerCase();
+  const settingsService = require('./services/settingsService');
+  const maintenance = require('./middleware/maintenance');
+  if (arg === 'on') {
+    await settingsService.set('maintenance_mode', 'true');
+    maintenance.bustCache();
+    return ctx.reply('🛠️ Maintenance mode *ON* — users are blocked.', { parse_mode: 'Markdown' });
+  }
+  if (arg === 'off') {
+    await settingsService.set('maintenance_mode', 'false');
+    maintenance.bustCache();
+    return ctx.reply('✅ Maintenance mode *OFF* — bot open to users.', { parse_mode: 'Markdown' });
+  }
+  if (arg === 'status') {
+    const on = await maintenance.isMaintenanceOn();
+    return ctx.reply(`Maintenance is *${on ? 'ON' : 'OFF'}*`, { parse_mode: 'Markdown' });
+  }
+  return ctx.reply('Usage: /maintenance on | off | status');
+});
+
+bot.action('terms:accept', async (ctx) => {
+  try {
+    await ctx.answerCbQuery('Thanks');
+  } catch (_) {}
+  const termsGate = require('./middleware/termsGate');
+  await termsGate.acceptTerms(ctx.from.id);
+  await ctx.replyWithMarkdown(
+    '✅ *Terms accepted.* Welcome aboard.\n\nTap *Play* or open the menu to continue.',
+    require('./utils/ui').mainMenu()
+  );
+});
+
+bot.action('terms:show', async (ctx) => {
+  try { await ctx.answerCbQuery(); } catch (_) {}
+  const termsGate = require('./middleware/termsGate');
+  await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
+});
+
 bot.command('admin', (ctx) => adminHandlers.showPanel(ctx));
 bot.command('stats', (ctx) => adminHandlers.stats(ctx));
 bot.command('pending', (ctx) => adminHandlers.listPendingWd(ctx));
@@ -122,6 +168,10 @@ bot.hears(['🏁 Contest', 'Daily Contest'], (ctx) => userHandlers.contest.showD
 bot.hears('👥 Referral', userHandlers.referral);
 bot.hears(['ℹ️ About', 'ℹ️ How to Play'], userHandlers.about);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
+bot.hears(['📜 Terms', 'Terms'], async (ctx) => {
+  const termsGate = require('./middleware/termsGate');
+  await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
+});
 
 // ─── Admin text menu ───
 bot.hears('📈 Stats', (ctx) => adminHandlers.stats(ctx));
@@ -133,6 +183,7 @@ bot.hears('🎫 Support Tickets', (ctx) => adminHandlers.listSupport(ctx));
 bot.hears('🛡️ Liability', (ctx) => adminHandlers.liability(ctx));
 bot.hears('🎲 Set Draw', (ctx) => adminHandlers.startSetDraw(ctx));
 bot.hears('📊 Tax Export', (ctx) => adminHandlers.taxExport(ctx));
+bot.hears('🛠️ Maintenance', (ctx) => adminHandlers.toggleMaintenance(ctx));
 bot.hears('🔒 Admin Panel', (ctx) => adminHandlers.showPanel(ctx));
 
 // ─── User callbacks ───
