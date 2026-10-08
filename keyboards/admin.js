@@ -7,7 +7,7 @@ module.exports = {
       ['📢 Broadcast', '💬 Message User'],
       ['🎫 Support Tickets', '🛡️ Liability'],
       ['🎲 Set Draw', '📊 Tax Export'],
-      ['🔒 Admin Panel'],
+      ['🛠️ Maintenance', '🔒 Admin Panel'],
     ]).resize(),
 
   pendingActions: (withdrawalId) =>

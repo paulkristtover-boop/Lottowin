@@ -3,6 +3,7 @@ const { mainMenu } = require('../../utils/ui');
 const config = require('../../config');
 const { formatUsd } = require('../../utils/helpers');
 const copy = require('../../utils/copy');
+const termsGate = require('../../middleware/termsGate');
 const channelMembership = require('../../services/channelMembershipService');
 
 const onboarding = new Map();
@@ -44,6 +45,9 @@ module.exports = async (ctx) => {
   const welcome = copy.welcome(fresh);
 
   await ctx.replyWithMarkdown(welcome, mainMenu());
+  if (!(await termsGate.hasAccepted(ctx.from.id))) {
+    await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
+  }
   await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
   // public id tip
   if (fresh.public_id) {
@@ -91,9 +95,9 @@ module.exports.handleOnboardingText = async (ctx) => {
     await userService.setCaptchaPassed(ctx.from.id);
     const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
     await ctx.replyWithMarkdown(
-      `✅ You're in!\n\nTap *Play* to choose *4/40* or *3/30*.\nEach game has its own rules & prizes.`,
-      mainMenu()
+      `✅ Age & security checks done.\n\nOne more step — please review our terms:`,
     );
+    await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
     if (fresh?.public_id) {
       await ctx.replyWithMarkdown(
         `🪪 Your public player ID: *${fresh.public_id}*\n_Used on live bets & contests (username hidden)._`

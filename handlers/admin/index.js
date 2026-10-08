@@ -394,10 +394,29 @@ async function creditDeposit(ctx) {
   }
 }
 
+
+async function toggleMaintenance(ctx) {
+  if (!requireAdmin(ctx)) return;
+  const settingsService = require('../../services/settingsService');
+  const maintenance = require('../../middleware/maintenance');
+  const adminKb = require('../../keyboards/admin');
+  const on = await maintenance.isMaintenanceOn();
+  await settingsService.set('maintenance_mode', on ? 'false' : 'true');
+  maintenance.bustCache();
+  const now = !on;
+  await ctx.replyWithMarkdown(
+    now
+      ? '🛠️ Maintenance *ON* — users blocked.\nToggle again or `/maintenance off` when done.'
+      : '✅ Maintenance *OFF* — bot open.\nBroadcast users to send `/start`.',
+    adminKb.main()
+  );
+}
+
 module.exports = {
   isAdmin,
   requireAdmin,
   showPanel,
+  toggleMaintenance,
   listPendingDeposits,
   creditDeposit,
   stats,

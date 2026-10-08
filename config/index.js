@@ -136,4 +136,10 @@ module.exports = {
   channelLink: process.env.CHANNEL_LINK || 'https://t.me/LottoWinOfficial',
 
   howToPlayText: 'Choose a game under Play for game-specific instructions (4/40 or 3/30).',
+
+  maintenanceMode: process.env.MAINTENANCE_MODE === 'true',
+  maintenanceMessage: process.env.MAINTENANCE_MESSAGE || '',
+  termsVersion: process.env.TERMS_VERSION || '1.0',
+  termsRequired: process.env.TERMS_REQUIRED !== 'false',
+  termsSummary: process.env.TERMS_SUMMARY || '',
 };

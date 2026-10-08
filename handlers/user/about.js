@@ -8,6 +8,7 @@ function howtoKeyboard() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('📖 How to play 4/40', 'howto:4_40')],
     [Markup.button.callback('📖 How to play 3/30', 'howto:3_30')],
+    [Markup.button.callback('📜 Terms', 'terms:show')],
     [Markup.button.callback('🎰 Play now', 'menu:play')],
     [Markup.button.callback('« Main menu', 'menu:main')],
   ]);

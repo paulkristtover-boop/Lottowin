@@ -34,6 +34,7 @@ module.exports = async (ctx, next) => {
     '🎲 Set Draw',
     '📊 Tax Export',
     '🔒 Admin Panel',
+    '🛠️ Maintenance',
   ];
   if (adminLabels.includes(text)) return next();
 
@@ -49,9 +50,11 @@ module.exports = async (ctx, next) => {
     return;
   }
   if (ctx.message) {
+    const adminKb = require('../keyboards/admin');
+    const extra = adminKb.main();
     await ctx.reply(
-      '🔒 *Admin accounts cannot play, deposit, or use player features.*\nUse the Admin Panel below.',
-      { parse_mode: 'Markdown', ...require('../keyboards/admin').main() }
+      '🔒 Admin accounts cannot play, deposit, or use player features. Use the Admin Panel below.',
+      extra
     );
     return;
   }

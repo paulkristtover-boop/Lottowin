@@ -777,3 +777,79 @@ textarea {
     border: 1px solid #ccc;
   }
 }
+
+/* Nav sections */
+.nav-section {
+  margin-bottom: 0.85rem;
+}
+.nav-section-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.35rem 0.85rem 0.25rem;
+}
+.sidebar-tag {
+  margin: 0.1rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.sidebar h1 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+/* Sticky topbar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  padding: 0.65rem 0;
+  margin: -0.25rem 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.page-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.login-brand {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+.login-card label {
+  display: block;
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.login-card .btn {
+  margin-top: 1.1rem;
+  width: 100%;
+}
+.login-card .flash {
+  margin-top: 0.85rem;
+}
+
+/* Dense tables on small screens */
+@media (max-width: 640px) {
+  table {
+    font-size: 0.82rem;
+  }
+  .stat .value {
+    font-size: 1.15rem;
+  }
+  .filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -317,3 +317,18 @@ launch().catch((e) => {
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+// Surface real require/runtime errors clearly on Railway
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaughtException:', err && err.message);
+  if (err && err.code === 'MODULE_NOT_FOUND') {
+    console.error('[fatal] Missing package or file. Require stack (leaf → entry):');
+    console.error(err.stack);
+    console.error('[hint] Run npm install on deploy. Entry file is bot.js (main).');
+  }
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('[fatal] unhandledRejection:', err);
+});

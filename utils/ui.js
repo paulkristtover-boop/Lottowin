@@ -15,6 +15,7 @@ function moreMenu() {
     ['🏁 Contest', '⚔️ Battle'],
     ['👥 Referral', '📊 Activity'],
     ['🛡️ Responsible', 'ℹ️ How to Play'],
+    ['📜 Terms'],
     ['« Main menu'],
   ]).resize();
 }

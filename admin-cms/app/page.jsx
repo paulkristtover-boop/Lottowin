@@ -159,9 +159,10 @@ export default async function Dashboard() {
         <strong>Platform model</strong>
         <ul style={{ color: 'var(--muted)', marginBottom: 0 }}>
           <li>Cash welcome/referral bonuses disabled — free tickets only</li>
-          <li>Welcome tickets locked until first deposit ≥ $1</li>
-          <li>Referral free tickets after referred user’s first cash bet + 5% cash commission</li>
-          <li>Games: Insta Win 4/40 &amp; 3/30 · liability / tax / spend limits enforced on bot</li>
+          <li>Welcome tickets unlock after first deposit ≥ min deposit (env)</li>
+          <li>Referral free tickets after referred user&apos;s first cash bet + commission %</li>
+          <li>Prizes scale with PLAY_COST_USD · play-through &amp; withdraw fee on bot</li>
+          <li>Maintenance: bot /maintenance on|off · Terms versioned on first use</li>
         </ul>
       </div>
     </AdminShell>
