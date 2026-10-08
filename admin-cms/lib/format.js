@@ -10,6 +10,13 @@ export function usd(amount) {
   return `$${s}`;
 }
 
+/** Exact USDT amount for withdrawals / deposits (always 6 dp). */
+export function usdtExact(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '0.000000';
+  return n.toFixed(6);
+}
+
 export function dt(value) {
   if (!value) return '—';
   try {

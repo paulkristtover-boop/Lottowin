@@ -3,7 +3,7 @@ import AdminShell from '@/components/AdminShell';
 import FilterBar from '@/components/FilterBar';
 import Pagination from '@/components/Pagination';
 import { query } from '@/lib/db';
-import { usd, dt } from '@/lib/format';
+import { usd, usdtExact, dt } from '@/lib/format';
 import { sp, offset } from '@/lib/filters';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +62,13 @@ export default async function WithdrawalsPage({ searchParams }) {
 
   return (
     <AdminShell title="Withdrawals">
+      <div className="card" style={{ marginBottom: 12 }}>
+        <p style={{ color: 'var(--muted)', margin: 0, fontSize: '0.9rem' }}>
+          <strong>SEND EXACTLY</strong> the amount shown (unique 6-dp USDT). Fee is fixed by network
+          (TRC-20 / ERC-20), held from the user with the payout. After on-chain send use bot{' '}
+          <code>/approve &lt;ref&gt; &lt;txhash&gt;</code> or reject to refund amount + fee.
+        </p>
+      </div>
       <Suspense fallback={<div className="card">Loading filters…</div>}>
         <FilterBar
           resultCount={total}
@@ -101,44 +108,84 @@ export default async function WithdrawalsPage({ searchParams }) {
             <tr>
               <th>Ref</th>
               <th>User</th>
-              <th>Amount</th>
+              <th>Send exactly</th>
+              <th>Fee</th>
+              <th>Total held</th>
               <th>Chain</th>
               <th>Address</th>
               <th>Status</th>
+              <th>TX</th>
               <th>Requested</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ color: 'var(--muted)' }}>
+                <td colSpan={10} style={{ color: 'var(--muted)' }}>
                   No withdrawals match
                 </td>
               </tr>
             )}
-            {rows.map((w) => (
-              <tr key={w.id}>
-                <td style={{ fontSize: '0.75rem' }}>{String(w.id).slice(0, 8)}…</td>
-                <td>
-                  {w.user_id} {w.username ? `(@${w.username})` : ''}
-                </td>
-                <td>{usd(w.amount_usd)}</td>
-                <td>{w.chain}</td>
-                <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {w.address}
-                </td>
-                <td>
-                  <span
-                    className={`badge ${
-                      w.status === 'completed' ? 'green' : w.status === 'rejected' ? 'red' : 'yellow'
-                    }`}
+            {rows.map((w) => {
+              const payout = Number(w.amount_usd) || 0;
+              const fee = Number(w.fee_usd) || 0;
+              const held = payout + fee;
+              return (
+                <tr key={w.id}>
+                  <td style={{ fontSize: '0.75rem' }} title={String(w.id)}>
+                    <code>{String(w.id).slice(0, 8)}…</code>
+                  </td>
+                  <td>
+                    <a href={`/users/${w.user_id}`}>{w.user_id}</a>
+                    {w.username ? ` (@${w.username})` : ''}
+                  </td>
+                  <td>
+                    <strong style={{ fontFamily: 'monospace' }}>{usdtExact(payout)}</strong>
+                    <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}> USDT</span>
+                  </td>
+                  <td>{usd(fee)}</td>
+                  <td>{usd(held)}</td>
+                  <td>{w.chain}</td>
+                  <td
+                    style={{
+                      maxWidth: 160,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontFamily: 'monospace',
+                      fontSize: '0.8rem',
+                    }}
+                    title={w.address}
                   >
-                    {w.status}
-                  </span>
-                </td>
-                <td>{dt(w.requested_at)}</td>
-              </tr>
-            ))}
+                    {w.address}
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        w.status === 'completed'
+                          ? 'green'
+                          : w.status === 'rejected'
+                            ? 'red'
+                            : 'yellow'
+                      }`}
+                    >
+                      {w.status}
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      maxWidth: 100,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: '0.75rem',
+                    }}
+                    title={w.tx_hash || ''}
+                  >
+                    {w.tx_hash ? <code>{String(w.tx_hash).slice(0, 10)}…</code> : '—'}
+                  </td>
+                  <td>{dt(w.requested_at)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <Pagination base="/withdrawals" filters={f} total={total} />

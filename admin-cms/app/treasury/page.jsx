@@ -101,7 +101,9 @@ export default async function TreasuryPage() {
       <div className="card">
         <p style={{ color: 'var(--muted)', margin: 0 }}>
           Keep enough USDT on both master wallets to cover user balances and pending withdrawals.
-          Withdrawals are manual: bot notifies admins → send on-chain → <code>/approve ref txhash</code>.
+          Withdrawals are manual: bot notifies admins with <strong>SEND EXACTLY</strong> unique
+          amount → send that exact USDT on-chain → <code>/approve ref txhash</code>. Fee is fixed
+          per network and held with the payout; reject refunds amount + fee.
         </p>
       </div>
     </AdminShell>

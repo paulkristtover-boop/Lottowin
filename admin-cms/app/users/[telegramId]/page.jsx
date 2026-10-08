@@ -194,23 +194,33 @@ export default async function UserDetailPage({ params }) {
           <thead>
             <tr>
               <th>When</th>
-              <th>Amount</th>
+              <th>Send exactly</th>
+              <th>Fee</th>
+              <th>Held</th>
               <th>Chain</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {wds.rows.map((w) => (
-              <tr key={w.id}>
-                <td>{dt(w.requested_at)}</td>
-                <td>{usd(w.amount_usd)}</td>
-                <td>{w.chain}</td>
-                <td>{w.status}</td>
-              </tr>
-            ))}
+            {wds.rows.map((w) => {
+              const payout = Number(w.amount_usd) || 0;
+              const fee = Number(w.fee_usd) || 0;
+              return (
+                <tr key={w.id}>
+                  <td>{dt(w.requested_at)}</td>
+                  <td>
+                    <code>{Number(payout).toFixed(6)}</code>
+                  </td>
+                  <td>{usd(fee)}</td>
+                  <td>{usd(payout + fee)}</td>
+                  <td>{w.chain}</td>
+                  <td>{w.status}</td>
+                </tr>
+              );
+            })}
             {wds.rows.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ color: 'var(--muted)' }}>
+                <td colSpan={6} style={{ color: 'var(--muted)' }}>
                   None
                 </td>
               </tr>

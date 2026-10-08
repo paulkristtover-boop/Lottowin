@@ -53,9 +53,13 @@ export default function SettingsPage() {
             </tr>
             <tr>
               <td>
-                <code>WITHDRAWAL_FEE_PERCENT</code>
+                <code>WITHDRAW_FEE_TRC20_USD</code> / <code>WITHDRAW_FEE_ERC20_USD</code>
               </td>
-              <td>Fee on withdraw amount (default 2%).</td>
+              <td>
+                Fixed network fees (≈2× chain cost). Defaults <strong>$1</strong> TRC-20 /{' '}
+                <strong>$2</strong> ERC-20. Not a % of amount. Payout amount is unique 6-dp for
+                matching.
+              </td>
             </tr>
             <tr>
               <td>
