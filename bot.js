@@ -60,12 +60,12 @@ bot.command('maintenance', async (ctx) => {
   const settingsService = require('./services/settingsService');
   const maintenance = require('./middleware/maintenance');
   if (arg === 'on') {
-    await settingsService.set('maintenance_mode', 'true');
+    await settingsService.set('maintenance_mode', true);
     maintenance.bustCache();
     return ctx.reply('🛠️ Maintenance mode *ON* — users are blocked.', { parse_mode: 'Markdown' });
   }
   if (arg === 'off') {
-    await settingsService.set('maintenance_mode', 'false');
+    await settingsService.set('maintenance_mode', false);
     maintenance.bustCache();
     return ctx.reply('✅ Maintenance mode *OFF* — bot open to users.', { parse_mode: 'Markdown' });
   }

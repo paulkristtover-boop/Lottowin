@@ -3,10 +3,23 @@ import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+function asBool(v) {
+  if (v === true || v === false) return v;
+  if (typeof v === 'string') return v.toLowerCase() === 'true' || v === '1';
+  if (v && typeof v === 'object' && 'value' in v) return asBool(v.value);
+  return false;
+}
+
+function asString(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  return String(v);
+}
+
 async function getFlag() {
   try {
     const res = await query(`SELECT value FROM settings WHERE key = 'maintenance_mode'`);
-    return String(res.rows[0]?.value || 'false').toLowerCase() === 'true';
+    return asBool(res.rows[0]?.value);
   } catch {
     return false;
   }
@@ -17,7 +30,7 @@ export async function GET() {
   let message = '';
   try {
     const m = await query(`SELECT value FROM settings WHERE key = 'maintenance_message'`);
-    message = m.rows[0]?.value || '';
+    message = asString(m.rows[0]?.value);
   } catch {
     /* ignore */
   }
@@ -30,16 +43,17 @@ export async function POST(req) {
     const on = !!body.on;
     const message = body.message != null ? String(body.message) : null;
 
+    // value column is JSONB — pass proper JSON text
     await query(
-      `INSERT INTO settings (key, value, updated_at) VALUES ('maintenance_mode', $1, NOW())
-       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
-      [on ? 'true' : 'false']
+      `INSERT INTO settings (key, value, updated_at) VALUES ('maintenance_mode', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = NOW()`,
+      [JSON.stringify(on)]
     );
     if (message != null) {
       await query(
-        `INSERT INTO settings (key, value, updated_at) VALUES ('maintenance_message', $1, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
-        [message]
+        `INSERT INTO settings (key, value, updated_at) VALUES ('maintenance_message', $1::jsonb, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = NOW()`,
+        [JSON.stringify(message)]
       );
     }
     return NextResponse.json({ ok: true, maintenance: on });

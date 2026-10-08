@@ -401,7 +401,7 @@ async function toggleMaintenance(ctx) {
   const maintenance = require('../../middleware/maintenance');
   const adminKb = require('../../keyboards/admin');
   const on = await maintenance.isMaintenanceOn();
-  await settingsService.set('maintenance_mode', on ? 'false' : 'true');
+  await settingsService.set('maintenance_mode', !on);
   maintenance.bustCache();
   const now = !on;
   await ctx.replyWithMarkdown(

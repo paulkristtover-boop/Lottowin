@@ -2,13 +2,13 @@
  * Maintenance mode — blocks non-admin users from bot actions.
  * Sources (either true → on):
  *   env MAINTENANCE_MODE=true
- *   settings key maintenance_mode = "true"  (toggle without full redeploy)
+ *   settings key maintenance_mode (JSONB bool or string)
  */
 const config = require('../config');
 const settingsService = require('../services/settingsService');
 const logger = require('../utils/logger');
 
-let cache = { on: false, msg: '', at: 0 };
+let cache = { on: false, at: 0 };
 const CACHE_MS = 5000;
 
 function isAdmin(ctx) {
@@ -22,15 +22,14 @@ async function isMaintenanceOn() {
   }
   if (Date.now() - cache.at < CACHE_MS) return cache.on;
   try {
-    const v = await settingsService.get('maintenance_mode', 'false');
+    const v = await settingsService.get('maintenance_mode', false);
     cache = {
-      on: String(v).toLowerCase() === 'true',
-      msg: '',
+      on: settingsService.asBool(v),
       at: Date.now(),
     };
   } catch (e) {
     logger.warn('maintenance settings read', e.message);
-    cache = { on: false, msg: '', at: Date.now() };
+    cache = { on: false, at: Date.now() };
   }
   return cache.on;
 }
@@ -38,7 +37,8 @@ async function isMaintenanceOn() {
 async function maintenanceMessage() {
   try {
     const custom = await settingsService.get('maintenance_message', null);
-    if (custom && String(custom).trim()) return String(custom);
+    const s = settingsService.asString(custom);
+    if (s && s.trim()) return s;
   } catch {
     /* ignore */
   }
@@ -52,7 +52,6 @@ async function maintenanceMessage() {
   );
 }
 
-/** Clear cache after admin toggle */
 function bustCache() {
   cache.at = 0;
 }
@@ -64,9 +63,7 @@ module.exports = async function maintenance(ctx, next) {
   const on = await isMaintenanceOn();
   if (!on) return next();
 
-  const text = (ctx.message && ctx.message.text) || '';
-  // Allow /start so users see the maintenance notice cleanly
-  if (ctx.updateType === 'callback_query') {
+  if (ctx.callbackQuery) {
     try {
       await ctx.answerCbQuery('Maintenance — try later');
     } catch {
@@ -84,8 +81,6 @@ module.exports = async function maintenance(ctx, next) {
   } catch {
     /* ignore */
   }
-  // Stop pipeline — do not process play/deposit/etc.
-  return;
 };
 
 module.exports.isMaintenanceOn = isMaintenanceOn;
