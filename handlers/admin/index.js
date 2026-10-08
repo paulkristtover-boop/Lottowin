@@ -70,13 +70,17 @@ async function listPendingWd(ctx) {
   if (list.length === 0) return ctx.reply('No pending withdrawals.', adminKb.main());
 
   for (const w of list.slice(0, 15)) {
+    const exact = Number(w.amount_usd).toFixed(6);
+    const fee = Number(w.fee_usd) || 0;
     const text =
       `💸 *Withdrawal*\n` +
       `ID: \`${w.id}\`\n` +
-      `User: \`${w.user_id}\` @${w.username || '—'}\n` +
-      `Amount: ${formatUsd(w.amount_usd)}\n` +
+      `User: \`${w.user_id}\` @${w.username || '—'}\n\n` +
+      `*SEND EXACTLY:*\n\`${exact}\` USDT\n\n` +
+      `Fee held: ${formatUsd(fee)}\n` +
       `Chain: ${w.chain}\n` +
-      `Address:\n\`${w.address}\``;
+      `Address:\n\`${w.address}\`\n\n` +
+      `/approve ${w.id} <txhash>`;
     await ctx.replyWithMarkdown(text, adminKb.pendingActions(w.id));
   }
 }
@@ -318,7 +322,21 @@ async function handleAdminCallback(ctx, bot) {
     ctx.session = ctx.session || {};
     // Approve without tx hash first; admin can paste hash later via /approve
     const w = await financeService.approveWithdrawal(id, ctx.from.id, null);
-    await ctx.reply(w ? `✅ Approved ${id}` : 'Not found / already processed', adminKb.main());
+    if (w) {
+      await ctx.reply(`✅ Approved ${id}`, adminKb.main());
+      try {
+        const exact = Number(w.amount_usd).toFixed(6);
+        await ctx.telegram.sendMessage(
+          w.user_id,
+          `✅ *Withdrawal paid*\n\nYou received *${exact}* USDT\nRef: \`${w.id}\``,
+          { parse_mode: 'Markdown' }
+        );
+      } catch {
+        /* user blocked bot */
+      }
+    } else {
+      await ctx.reply('Not found / already processed', adminKb.main());
+    }
     return true;
   }
 
@@ -326,7 +344,23 @@ async function handleAdminCallback(ctx, bot) {
     const id = data.replace('adm:wd:no:', '');
     await ctx.answerCbQuery();
     const w = await financeService.rejectWithdrawal(id, ctx.from.id, 'Rejected by admin');
-    await ctx.reply(w ? `❌ Rejected ${id}` : 'Not found / already processed', adminKb.main());
+    if (w) {
+      await ctx.reply(`❌ Rejected ${id} — full amount + fee refunded`, adminKb.main());
+      try {
+        const payout = Number(w.amount_usd) || 0;
+        const fee = Number(w.fee_usd) || 0;
+        const refund = (payout + fee).toFixed(6);
+        await ctx.telegram.sendMessage(
+          w.user_id,
+          `❌ *Withdrawal rejected*\n\nRef: \`${w.id}\`\nRefunded to balance: *$${refund}* (payout + fee)`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch {
+        /* user blocked bot */
+      }
+    } else {
+      await ctx.reply('Not found / already processed', adminKb.main());
+    }
     return true;
   }
 

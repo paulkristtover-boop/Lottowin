@@ -5,7 +5,6 @@ const config = require('../../config');
 const { mainMenu } = require('../../utils/ui');
 const { formatUsd } = require('../../utils/helpers');
 const { Markup } = require('telegraf');
-const { v4: uuidv4 } = require('uuid');
 const wagerService = require('../../services/wagerService');
 
 /** @type {Map<number, {step:string, network?:string, address?:string}>} */
@@ -17,6 +16,13 @@ function withdrawMenu() {
     [Markup.button.callback('USDT ERC-20 (Ethereum)', 'wd:erc20')],
     [Markup.button.callback('« Back', 'menu:main')],
   ]);
+}
+
+function feeLineForNetwork(network) {
+  const chain = network === 'erc20' ? 'usdt_erc20' : 'usdt_trc20';
+  const fee = financeService.getWithdrawFeeUsd(chain);
+  const label = network === 'erc20' ? 'ERC-20' : 'TRC-20';
+  return `Network fee (${label}): *${formatUsd(fee)}* (covers ~2× chain cost)`;
 }
 
 async function showWithdraw(ctx) {
@@ -32,10 +38,17 @@ async function showWithdraw(ctx) {
     );
   }
 
+  const feeTrc = financeService.getWithdrawFeeUsd('usdt_trc20');
+  const feeErc = financeService.getWithdrawFeeUsd('usdt_erc20');
+
   await ctx.replyWithMarkdown(
     `📤 *Cash out USDT*\n\n` +
       `Available *${formatUsd(bal)}* · min *${formatUsd(config.minWithdrawUsd)}*\n` +
-      `Fee *${config.withdrawalFeePercent || 0}%* · play-through *${config.playthroughPercent || 100}%* of deposits\n\n` +
+      `Play-through *${config.playthroughPercent || 100}%* of deposits\n\n` +
+      `*Fixed network fees* (not % of amount):\n` +
+      `• TRC-20: *${formatUsd(feeTrc)}*\n` +
+      `• ERC-20: *${formatUsd(feeErc)}*\n\n` +
+      `You receive a unique exact amount. Fee is held with the payout.\n\n` +
       `Choose network (manual payout after review):`,
     withdrawMenu()
   );
@@ -50,7 +63,8 @@ async function startWithdraw(ctx, network) {
       ? 'EVM address starting with `0x`…'
       : 'Tron address starting with `T`…';
   await ctx.replyWithMarkdown(
-    `Send your *destination wallet address* (${hint}).\n\nOr /cancel`
+    `Send your *destination wallet address* (${hint}).\n\n` +
+      `${feeLineForNetwork(n)}\n\nOr /cancel`
   );
 }
 
@@ -58,15 +72,18 @@ async function startWithdraw(ctx, network) {
  * After DB insert, notify all admin IDs with structured payout request.
  */
 async function notifyAdmins(bot, payload) {
+  const exactStr = Number(payload.exactAmount).toFixed(6);
   const text =
     `🚨 *WITHDRAWAL REQUEST*\n\n` +
     `Ref: \`${payload.ref}\`\n` +
     `User ID: \`${payload.userId}\`\n` +
-    `Username: @${payload.username || '—'}\n` +
-    `Amount: *${formatUsd(payload.amount)}*\n` +
+    `Username: @${payload.username || '—'}\n\n` +
+    `*SEND EXACTLY:*\n\`${exactStr}\` USDT\n\n` +
+    `Fee held: *${formatUsd(payload.feeUsd)}*\n` +
+    `Total debited from user: *${formatUsd(payload.totalDebit)}*\n` +
     `Network: *${payload.networkLabel}*\n` +
     `Address:\n\`${payload.address}\`\n\n` +
-    `Approve after on-chain send:\n` +
+    `After on-chain send:\n` +
     `/approve ${payload.ref} <txhash>\n` +
     `Or reject:\n/reject ${payload.ref} reason`;
 
@@ -96,8 +113,13 @@ async function handleWithdrawText(ctx, bot) {
       state.address = addr;
       state.step = 'amount';
       pendingWithdraw.set(ctx.from.id, state);
+      const chainKey = state.network === 'erc20' ? 'usdt_erc20' : 'usdt_trc20';
+      const fee = financeService.getWithdrawFeeUsd(chainKey);
       await ctx.replyWithMarkdown(
-        `Address saved.\nEnter *USD amount* to withdraw (min ${formatUsd(config.minWithdrawUsd)}).\n\nOr /cancel`
+        `Address saved.\n` +
+          `Enter *USD amount* you want to receive (min ${formatUsd(config.minWithdrawUsd)}).\n\n` +
+          `Network fee *${formatUsd(fee)}* will be added on top and held from your balance.\n` +
+          `You will get a unique exact payout amount for verification.\n\nOr /cancel`
       );
     } catch (e) {
       await ctx.reply(`❌ ${e.message}\nTry again or /cancel`);
@@ -125,14 +147,18 @@ async function handleWithdrawText(ctx, bot) {
 
       const user = await userService.getUser(ctx.from.id);
       const networkLabel = state.network === 'erc20' ? 'USDT ERC-20' : 'USDT TRC-20';
+      const exact = Number(w.exact_amount ?? w.amount_usd);
+      const fee = Number(w.fee_usd);
+      const totalDebit = Number(w.total_debit ?? exact + fee);
 
-      // Notify owner(s) for manual payout
       if (bot) {
         await notifyAdmins(bot, {
           ref: w.id,
           userId: ctx.from.id,
           username: user?.username || ctx.from.username,
-          amount,
+          exactAmount: exact,
+          feeUsd: fee,
+          totalDebit,
           networkLabel,
           address: state.address,
         });
@@ -140,12 +166,14 @@ async function handleWithdrawText(ctx, bot) {
 
       await ctx.replyWithMarkdown(
         `✅ *Withdrawal requested*\n\n` +
-          `Amount: *${formatUsd(amount)}*\n` +
+          `*You will receive (exact):*\n\`${exact.toFixed(6)}\` USDT\n\n` +
+          `Network fee: *${formatUsd(fee)}*\n` +
+          `Total held from balance: *${formatUsd(totalDebit)}*\n\n` +
           `Network: ${networkLabel}\n` +
           `Address: \`${state.address}\`\n` +
           `Ref: \`${w.id}\`\n\n` +
           `Status: *pending manual review*.\n` +
-          `Funds are held from your balance. You will be notified when paid.`,
+          `Funds are held. You will be notified when paid or if rejected.`,
         mainMenu()
       );
     } catch (e) {

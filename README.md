@@ -62,6 +62,8 @@ TRONGRID_API_KEY=
 MIN_DEPOSIT_USD=1
 MIN_WITHDRAW_USD=1
 PLAY_COST_USD=0.00001
+WITHDRAW_FEE_TRC20_USD=1
+WITHDRAW_FEE_ERC20_USD=2
 DEFAULT_DAILY_LIMIT_USD=1
 DEFAULT_SESSION_LIMIT_USD=0.5
 DEFAULT_SESSION_LIMIT_MINS=20
@@ -123,7 +125,7 @@ MIT
 | Rule | Default |
 |------|---------|
 | Play-through | **100%** of deposits (cash ticket spend) before withdraw |
-| Withdrawal fee | **2%** of requested amount (debited with the hold) |
+| Withdrawal fee | Fixed network fee: **$1 TRC-20** / **$2 ERC-20** (≈2× chain cost; env `WITHDRAW_FEE_*`) |
 | Daily wager contest pool | **$5** shared by top **100** (your rank *ratios*, scaled from $2630 table) |
 | Weekly referral pool | **$2** shared by top **20** (ratios from $1100 table) |
 

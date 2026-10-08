@@ -79,7 +79,11 @@ module.exports = {
   defaultSessionLimitMins: parseInt(process.env.DEFAULT_SESSION_LIMIT_MINS || '20', 10),
   cooldownMinutes: parseInt(process.env.COOLDOWN_MINUTES || '1', 10),
   playthroughPercent: parseFloat(process.env.PLAYTHROUGH_PERCENT || '100'),
-  withdrawalFeePercent: parseFloat(process.env.WITHDRAWAL_FEE_PERCENT || '2'),
+  /** @deprecated use withdrawFeeTrc20Usd / withdrawFeeErc20Usd (fixed network fees) */
+  withdrawalFeePercent: parseFloat(process.env.WITHDRAWAL_FEE_PERCENT || '0'),
+  /** Fixed withdrawal fee ≈ 2× typical network cost (USDT). Override via env. */
+  withdrawFeeTrc20Usd: parseFloat(process.env.WITHDRAW_FEE_TRC20_USD || '1'),
+  withdrawFeeErc20Usd: parseFloat(process.env.WITHDRAW_FEE_ERC20_USD || '2'),
   dailyWagerPoolUsd: parseFloat(process.env.DAILY_WAGER_POOL_USD || '5'),
   weeklyReferralPoolUsd: parseFloat(process.env.WEEKLY_REFERRAL_POOL_USD || '2'),
   telegramChannelId: process.env.TELEGRAM_CHANNEL_ID || '',

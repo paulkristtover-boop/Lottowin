@@ -106,7 +106,23 @@ bot.command('approve', async (ctx) => {
   const tx = parts[2] || null;
   if (!id) return ctx.reply('Usage: /approve <uuid> [txhash]', adminKb.main());
   const w = await financeService.approveWithdrawal(id, ctx.from.id, tx);
-  await ctx.reply(w ? `Approved ${id}` : 'Not found or already processed', adminKb.main());
+  if (w) {
+    await ctx.reply(`Approved ${id}${tx ? ' TX ' + tx : ''}`, adminKb.main());
+    try {
+      const exact = Number(w.amount_usd).toFixed(6);
+      await ctx.telegram.sendMessage(
+        w.user_id,
+        `✅ *Withdrawal paid*\n\nYou received *${exact}* USDT` +
+          (tx ? `\nTX: \`${tx}\`` : '') +
+          `\nRef: \`${w.id}\``,
+        { parse_mode: 'Markdown' }
+      );
+    } catch {
+      /* user blocked bot */
+    }
+  } else {
+    await ctx.reply('Not found or already processed', adminKb.main());
+  }
 });
 bot.command('reject', async (ctx) => {
   if (!adminHandlers.isAdmin(ctx)) return;
@@ -115,7 +131,24 @@ bot.command('reject', async (ctx) => {
   const reason = parts.slice(2).join(' ') || 'Rejected by admin';
   if (!id) return ctx.reply('Usage: /reject <uuid> <reason>', adminKb.main());
   const w = await financeService.rejectWithdrawal(id, ctx.from.id, reason);
-  await ctx.reply(w ? `Rejected ${id}` : 'Not found', adminKb.main());
+  if (w) {
+    await ctx.reply(`Rejected ${id} — full amount + fee refunded`, adminKb.main());
+    try {
+      const payout = Number(w.amount_usd) || 0;
+      const fee = Number(w.fee_usd) || 0;
+      const refund = (payout + fee).toFixed(6);
+      await ctx.telegram.sendMessage(
+        w.user_id,
+        `❌ *Withdrawal rejected*\n\nReason: ${reason}\nRef: \`${w.id}\`\n` +
+          `Refunded to balance: *$${refund}* (payout + fee)`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch {
+      /* user blocked bot */
+    }
+  } else {
+    await ctx.reply('Not found', adminKb.main());
+  }
 });
 bot.command('setdraw', (ctx) => adminHandlers.startSetDraw(ctx));
 bot.command('taxexport', (ctx) => adminHandlers.taxExport(ctx));
