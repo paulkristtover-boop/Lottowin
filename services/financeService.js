@@ -29,12 +29,15 @@ async function getRates() {
 
 /**
  * Fixed fee by network ≈ 2× typical USDT transfer cost.
- * TRC-20 default $1 · ERC-20 default $2 (env override).
+ * TRC-20 $1 · ERC-20 $2 · Solana $0.50 (env override).
  */
 function getWithdrawFeeUsd(chain) {
   const c = String(chain || '').toLowerCase();
   if (c.includes('erc20') || c === 'eth') {
     return toSixDecimals(config.withdrawFeeErc20Usd || 2);
+  }
+  if (c.includes('sol')) {
+    return toSixDecimals(config.withdrawFeeSolUsd || 0.5);
   }
   // trc20 / tron default
   return toSixDecimals(config.withdrawFeeTrc20Usd || 1);

@@ -76,6 +76,7 @@ function depositMenu() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('USDT TRC-20 (Tron)', 'dep:trc20')],
     [Markup.button.callback('USDT ERC-20 (Ethereum)', 'dep:erc20')],
+    [Markup.button.callback('USDT Solana (SPL)', 'dep:sol')],
     [Markup.button.callback('📋 My pending deposit', 'dep:status')],
     [Markup.button.callback('👛 Wallet', 'ux:wallet')],
     [Markup.button.callback('« Main menu', 'menu:main')],
@@ -86,6 +87,7 @@ function withdrawMenu() {
   return Markup.inlineKeyboard([
     [Markup.button.callback('USDT TRC-20 (Tron)', 'wd:trc20')],
     [Markup.button.callback('USDT ERC-20 (Ethereum)', 'wd:erc20')],
+    [Markup.button.callback('USDT Solana (SPL)', 'wd:sol')],
     [Markup.button.callback('« Main menu', 'menu:main')],
   ]);
 }

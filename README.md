@@ -53,17 +53,20 @@ DATABASE_URL=postgres://...
 # Master USDT wallets (hot treasury — never commit private keys)
 TRC20_MASTER_ADDRESS=T...
 ERC20_MASTER_ADDRESS=0x...
+SOL_MASTER_ADDRESS=YourSolanaPubkey
 
 ETHERSCAN_API_KEY=
 TRONSCAN_API_KEY=
 # optional alias
 TRONGRID_API_KEY=
+HELIUS_API_KEY=
 
 MIN_DEPOSIT_USD=1
 MIN_WITHDRAW_USD=1
 PLAY_COST_USD=0.00001
 WITHDRAW_FEE_TRC20_USD=1
 WITHDRAW_FEE_ERC20_USD=2
+WITHDRAW_FEE_SOL_USD=0.5
 DEFAULT_DAILY_LIMIT_USD=1
 DEFAULT_SESSION_LIMIT_USD=0.5
 DEFAULT_SESSION_LIMIT_MINS=20
@@ -71,9 +74,10 @@ COOLDOWN_MINUTES=1
 DAILY_LIABILITY_CAP_USD=50
 ```
 
-Contracts used:
+Contracts / mints used:
 - USDT ERC-20: `0xdAC17F958D2ee523a2206206994597C13D831ec7`
 - USDT TRC-20: `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`
+- USDT Solana (SPL): `Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB`
 
 ## User bot
 
@@ -125,7 +129,7 @@ MIT
 | Rule | Default |
 |------|---------|
 | Play-through | **100%** of deposits (cash ticket spend) before withdraw |
-| Withdrawal fee | Fixed network fee: **$1 TRC-20** / **$2 ERC-20** (≈2× chain cost; env `WITHDRAW_FEE_*`) |
+| Withdrawal fee | Fixed network fee: **$1 TRC-20** / **$2 ERC-20** / **$0.50 Solana** (≈2× chain cost; env `WITHDRAW_FEE_*`) |
 | Daily wager contest pool | **$5** shared by top **100** (your rank *ratios*, scaled from $2630 table) |
 | Weekly referral pool | **$2** shared by top **20** (ratios from $1100 table) |
 

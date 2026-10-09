@@ -37,6 +37,7 @@ module.exports = {
   treasury: {
     usdtTrc20: process.env.TRC20_MASTER_ADDRESS || process.env.USDT_TRC20_ADDRESS || '',
     usdtErc20: process.env.ERC20_MASTER_ADDRESS || process.env.USDT_ERC20_ADDRESS || '',
+    usdtSol: process.env.SOL_MASTER_ADDRESS || process.env.USDT_SOL_ADDRESS || '',
     btc: process.env.BTC_ADDRESS || '',
     eth: process.env.ETH_ADDRESS || '',
     trx: process.env.TRX_ADDRESS || '',
@@ -45,6 +46,8 @@ module.exports = {
   trongridKey: process.env.TRONGRID_API_KEY || process.env.TRONSCAN_API_KEY || '',
   tronscanKey: process.env.TRONSCAN_API_KEY || '',
   etherscanKey: process.env.ETHERSCAN_API_KEY || '',
+  heliusApiKey: process.env.HELIUS_API_KEY || '',
+  solanaRpcUrl: process.env.SOLANA_RPC_URL || '',
   blockcypherToken: process.env.BLOCKCYPHER_TOKEN || '',
 
   // Economy (USD)
@@ -84,6 +87,7 @@ module.exports = {
   /** Fixed withdrawal fee ≈ 2× typical network cost (USDT). Override via env. */
   withdrawFeeTrc20Usd: parseFloat(process.env.WITHDRAW_FEE_TRC20_USD || '1'),
   withdrawFeeErc20Usd: parseFloat(process.env.WITHDRAW_FEE_ERC20_USD || '2'),
+  withdrawFeeSolUsd: parseFloat(process.env.WITHDRAW_FEE_SOL_USD || '0.5'),
   dailyWagerPoolUsd: parseFloat(process.env.DAILY_WAGER_POOL_USD || '5'),
   weeklyReferralPoolUsd: parseFloat(process.env.WEEKLY_REFERRAL_POOL_USD || '2'),
   telegramChannelId: process.env.TELEGRAM_CHANNEL_ID || '',

@@ -24,6 +24,7 @@ export default async function TreasuryPage() {
 
   const trc = process.env.TRC20_MASTER_ADDRESS || process.env.USDT_TRC20_ADDRESS || '— set TRC20_MASTER_ADDRESS —';
   const erc = process.env.ERC20_MASTER_ADDRESS || process.env.USDT_ERC20_ADDRESS || '— set ERC20_MASTER_ADDRESS —';
+  const sol = process.env.SOL_MASTER_ADDRESS || process.env.USDT_SOL_ADDRESS || '— set SOL_MASTER_ADDRESS —';
 
   return (
     <AdminShell title="Treasury">
@@ -62,12 +63,17 @@ export default async function TreasuryPage() {
               <td><span className="badge primary">ERC-20</span> Ethereum</td>
               <td><code style={{ wordBreak: 'break-all' }}>{erc}</code></td>
             </tr>
+            <tr>
+              <td><span className="badge green">SPL</span> Solana</td>
+              <td><code style={{ wordBreak: 'break-all' }}>{sol}</code></td>
+            </tr>
           </tbody>
         </table>
         <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: 0 }}>
-          Set via bot/CMS env: <code>TRC20_MASTER_ADDRESS</code>, <code>ERC20_MASTER_ADDRESS</code>,
-          plus <code>ETHERSCAN_API_KEY</code> and <code>TRONSCAN_API_KEY</code> / <code>TRONGRID_API_KEY</code>.
-          Scanner polls explorers every 30s (unique-amount match, no TX hash from users).
+          Set via bot/CMS env: <code>TRC20_MASTER_ADDRESS</code>, <code>ERC20_MASTER_ADDRESS</code>,{' '}
+          <code>SOL_MASTER_ADDRESS</code>, plus <code>ETHERSCAN_API_KEY</code>,{' '}
+          <code>TRONGRID_API_KEY</code>, and <code>HELIUS_API_KEY</code> (Solana USDT). Scanner polls
+          every 30s (unique-amount match).
         </p>
       </div>
 

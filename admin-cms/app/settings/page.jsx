@@ -53,12 +53,13 @@ export default function SettingsPage() {
             </tr>
             <tr>
               <td>
-                <code>WITHDRAW_FEE_TRC20_USD</code> / <code>WITHDRAW_FEE_ERC20_USD</code>
+                <code>WITHDRAW_FEE_TRC20_USD</code> / <code>WITHDRAW_FEE_ERC20_USD</code> /{' '}
+                <code>WITHDRAW_FEE_SOL_USD</code>
               </td>
               <td>
                 Fixed network fees (≈2× chain cost). Defaults <strong>$1</strong> TRC-20 /{' '}
-                <strong>$2</strong> ERC-20. Not a % of amount. Payout amount is unique 6-dp for
-                matching.
+                <strong>$2</strong> ERC-20 / <strong>$0.50</strong> Solana. Not a % of amount.
+                Payout amount is unique 6-dp for matching.
               </td>
             </tr>
             <tr>
@@ -124,15 +125,17 @@ export default function SettingsPage() {
           <tbody>
             <tr>
               <td>
-                <code>TRC20_MASTER_ADDRESS</code> / <code>ERC20_MASTER_ADDRESS</code>
+                <code>TRC20_MASTER_ADDRESS</code> / <code>ERC20_MASTER_ADDRESS</code> /{' '}
+                <code>SOL_MASTER_ADDRESS</code>
               </td>
-              <td>Treasury deposit addresses</td>
+              <td>Treasury deposit addresses (Tron / Ethereum / Solana)</td>
             </tr>
             <tr>
               <td>
-                <code>ETHERSCAN_API_KEY</code> / <code>TRONGRID_API_KEY</code>
+                <code>ETHERSCAN_API_KEY</code> / <code>TRONGRID_API_KEY</code> /{' '}
+                <code>HELIUS_API_KEY</code>
               </td>
-              <td>Explorer polling for unique-amount deposits</td>
+              <td>Explorer polling for unique-amount deposits (Helius for Solana USDT)</td>
             </tr>
             <tr>
               <td>

@@ -403,13 +403,13 @@ async function listPendingDeposits(ctx) {
 
 
 
-/** /creditdep <telegramId> <amount> <erc20|trc20> [txhash] */
+/** /creditdep <telegramId> <amount> <erc20|trc20|sol> [txhash] */
 async function creditDeposit(ctx) {
   if (!requireAdmin(ctx)) return;
   const parts = (ctx.message.text || '').trim().split(/\s+/);
   // /creditdep uid amount network [hash]
   if (parts.length < 4) {
-    return ctx.reply('Usage: /creditdep <telegramId> <amount> <erc20|trc20> [txHash]');
+    return ctx.reply('Usage: /creditdep <telegramId> <amount> <erc20|trc20|sol> [txHash]');
   }
   const userId = Number(parts[1]);
   const amount = parseFloat(parts[2]);

@@ -37,6 +37,7 @@ function walletKeyboard(user) {
     Markup.button.callback('TRC-20 USDT', 'dep:trc20'),
     Markup.button.callback('ERC-20 USDT', 'dep:erc20'),
   ]);
+  rows.push([Markup.button.callback('Solana USDT', 'dep:sol')]);
   rows.push([Markup.button.callback('« Main menu', 'menu:main')]);
   return Markup.inlineKeyboard(rows);
 }
@@ -99,6 +100,7 @@ async function handleQuickDeposit(ctx, amount) {
     Markup.inlineKeyboard([
       [Markup.button.callback('USDT TRC-20 (Tron)', `dep:net:trc20:${amt}`)],
       [Markup.button.callback('USDT ERC-20 (Ethereum)', `dep:net:erc20:${amt}`)],
+      [Markup.button.callback('USDT Solana (SPL)', `dep:net:sol:${amt}`)],
       [Markup.button.callback('Cancel', 'menu:main')],
     ])
   );
@@ -111,7 +113,7 @@ async function handleNetAmount(ctx, network, amount) {
   } catch (_) {}
   try {
     const pending = await cryptoPayment.createPendingDeposit(ctx.from.id, network, amt);
-    const netHuman = pending.network === 'erc20' ? 'ERC-20 (Ethereum)' : 'TRC-20 (Tron)';
+    const netHuman = cryptoPayment.networkLabel(pending.network);
     const exact = pending.exactAmount.toFixed(6);
     const user = await userService.getUser(ctx.from.id);
     const locked = Number(user?.locked_tickets) || 0;
@@ -121,7 +123,7 @@ async function handleNetAmount(ctx, network, amount) {
         : '';
 
     const msg =
-      `📥 *Deposit USDT ${netHuman}*\n\n` +
+      `📥 *Deposit ${netHuman}*\n\n` +
       `Send *exactly*:\n\`${exact}\` USDT\n\n` +
       `To:\n\`${pending.masterAddress}\`\n\n` +
       `⏱ Valid 15 minutes\n` +

@@ -238,11 +238,13 @@ bot.action('play:cancel', userHandlers.play.cancelPlay);
 bot.action(/^num:/, userHandlers.play.handleNumber);
 bot.action('dep:trc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'trc20'));
 bot.action('dep:erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20'));
+bot.action('dep:sol', (ctx) => userHandlers.deposit.startNetwork(ctx, 'sol'));
 bot.action('dep:usdt_trc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'trc20'));
 bot.action('dep:usdt_erc20', (ctx) => userHandlers.deposit.startNetwork(ctx, 'erc20'));
+bot.action('dep:usdt_sol', (ctx) => userHandlers.deposit.startNetwork(ctx, 'sol'));
 bot.action('dep:status', (ctx) => userHandlers.deposit.showStatus(ctx));
 bot.action(/^dep:quick:(.+)$/, (ctx) => userHandlers.wallet.handleQuickDeposit(ctx, ctx.match[1]));
-bot.action(/^dep:net:(trc20|erc20):(.+)$/, (ctx) =>
+bot.action(/^dep:net:(trc20|erc20|sol):(.+)$/, (ctx) =>
   userHandlers.wallet.handleNetAmount(ctx, ctx.match[1], ctx.match[2])
 );
 bot.action(/^wd:(.+)/, (ctx) => {
