@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
   year_of_birth   INT,
   age_verified_at TIMESTAMPTZ,
   captcha_passed_at TIMESTAMPTZ,
+  last_banner_week TEXT,
   terms_accepted_at TIMESTAMPTZ,
   terms_version TEXT,
   -- Anti-abuse signals (Telegram does not expose client IP; we store what we can)

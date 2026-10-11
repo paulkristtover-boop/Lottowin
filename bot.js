@@ -50,6 +50,7 @@ bot.command('referral', userHandlers.referral);
 bot.command('about', userHandlers.about);
 bot.command('support', userHandlers.support.showSupport);
 bot.command('responsible', userHandlers.responsible.show);
+bot.command('promo', (ctx) => userHandlers.promo.show(ctx));
 
 // ─── Admin commands ───
 
@@ -201,6 +202,7 @@ bot.hears(['🏁 Contest', 'Daily Contest'], (ctx) => userHandlers.contest.showD
 bot.hears('👥 Referral', userHandlers.referral);
 bot.hears(['ℹ️ About', 'ℹ️ How to Play'], userHandlers.about);
 bot.hears(['🛡️ Responsible', '🛡️ Responsible Play'], userHandlers.responsible.show);
+bot.hears(['🎁 Promo', 'Promo', '/promo'], (ctx) => userHandlers.promo.show(ctx));
 bot.hears(['📜 Terms', 'Terms'], async (ctx) => {
   const termsGate = require('./middleware/termsGate');
   await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());

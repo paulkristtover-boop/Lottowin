@@ -13,6 +13,7 @@ const wager = require('./wager');
 const live = require('./live');
 const battle = require('./battle');
 const contest = require('./contest');
+const promo = require('./promo');
 
 module.exports = {
   start,
@@ -30,4 +31,5 @@ module.exports = {
   live,
   battle,
   contest,
+  promo,
 };

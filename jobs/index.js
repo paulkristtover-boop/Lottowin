@@ -55,6 +55,7 @@ function startJobs() {
         if (now.getUTCDay() === 1) {
           await contestService.settleWeeklyReferral(botRef);
           await channelService.postWeeklyBattleSnapshot(botRef);
+          await channelService.postWeeklyBanner(botRef);
         }
       }
     } catch (e) {
@@ -72,7 +73,19 @@ function startJobs() {
     }
   }, 2 * 60 * 60 * 1000);
 
-  logger.info('Background jobs: deposit 30s, channel hourly, contest settle, join soft-remind');
+  // Weekly banner: Mondays ~09:00 UTC window via 15-min settle loop also; backup weekly check
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      if (now.getUTCDay() === 1 && now.getUTCHours() === 9 && now.getUTCMinutes() < 16) {
+        await channelService.postWeeklyBanner(botRef);
+      }
+    } catch (e) {
+      logger.error('Weekly banner job', e.message);
+    }
+  }, 15 * 60 * 1000);
+
+  logger.info('Background jobs: deposit 30s, channel hourly, contest settle, weekly banner, join soft-remind');
 }
 
 module.exports = { startJobs, setBot };

@@ -69,10 +69,27 @@ async function postWeeklyBattleSnapshot(bot) {
   return post(bot, text);
 }
 
+async function postWeeklyBanner(bot) {
+  const bannerService = require('./bannerService');
+  const id = channelId();
+  if (!id || !bot?.telegram) {
+    logger.warn('Channel banner skipped — no TELEGRAM_CHANNEL_ID');
+    return false;
+  }
+  try {
+    await bannerService.refreshWeeklyBanner(bot);
+    return bannerService.sendBannerToChat(bot.telegram, id, { mode: 'force' });
+  } catch (e) {
+    logger.error('postWeeklyBanner', e.message);
+    return false;
+  }
+}
+
 module.exports = {
   post,
   postHourlyLiveBets,
   postDailyContestSnapshot,
   postWeeklyBattleSnapshot,
+  postWeeklyBanner,
   channelId,
 };

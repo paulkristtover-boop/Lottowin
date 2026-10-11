@@ -3,6 +3,8 @@ const cryptoPayment = require('../../services/cryptoPaymentService');
 const { mainMenu, depositMenu } = require('../../utils/ui');
 const { Markup } = require('telegraf');
 const { formatUsd } = require('../../utils/helpers');
+const bannerService = require('../../services/bannerService');
+const userService = require('../../services/userService');
 
 const depositFlow = new Map();
 
@@ -37,6 +39,16 @@ function pendingActions() {
 
 async function showDeposit(ctx) {
   depositFlow.delete(ctx.from.id);
+  try {
+    const u = await userService.getUser(ctx.from.id);
+    if (u && !u.is_first_deposit_completed) {
+      await bannerService.sendBannerToChat(ctx.telegram, ctx.chat.id, {
+        mode: 'once_per_week',
+        telegramId: ctx.from.id,
+      });
+    }
+  } catch (_) {}
+
   const pending = await cryptoPayment.getPendingForUser(ctx.from.id);
   let text =
     `📥 *Fuel your balance*\n\n` +

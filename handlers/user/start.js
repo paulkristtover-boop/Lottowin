@@ -4,6 +4,7 @@ const config = require('../../config');
 const { formatUsd } = require('../../utils/helpers');
 const copy = require('../../utils/copy');
 const termsGate = require('../../middleware/termsGate');
+const bannerService = require('../../services/bannerService');
 const channelMembership = require('../../services/channelMembershipService');
 
 const onboarding = new Map();
@@ -49,6 +50,11 @@ module.exports = async (ctx) => {
     await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
   }
   await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
+  // Weekly promo banner (logo) — once per ISO week, never blocks onboarding
+  bannerService.sendBannerToChat(ctx.telegram, ctx.chat.id, {
+    mode: 'once_per_week',
+    telegramId: ctx.from.id,
+  }).catch(() => {});
   // public id tip
   if (fresh.public_id) {
     await ctx.replyWithMarkdown(
