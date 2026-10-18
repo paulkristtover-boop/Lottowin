@@ -52,26 +52,35 @@ async function findOrCreateUser(telegramUser, referredBy = null) {
     publicId = generatePublicId();
   }
 
-  res = await query(
-    `INSERT INTO users (
-       telegram_id, username, first_name, last_name, language_code, referral_code, referred_by,
-       daily_limit_usd, session_limit_usd, public_id
-     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING *`,
-    [
-      id,
-      username || null,
-      first_name || null,
-      last_name || null,
-      language_code || 'en',
-      referralCode,
-      referrerId,
-      config.defaultDailyLimitUsd,
-      config.defaultSessionLimitUsd,
-      publicId,
-    ]
-  );
+  try {
+    res = await query(
+      `INSERT INTO users (
+         telegram_id, username, first_name, last_name, language_code, referral_code, referred_by, public_id
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        id,
+        username || null,
+        first_name || null,
+        last_name || null,
+        language_code || 'en',
+        referralCode,
+        referrerId,
+        publicId,
+      ]
+    );
+  } catch (e) {
+    // legacy columns
+    res = await query(
+      `INSERT INTO users (
+         telegram_id, username, first_name, last_name, language_code, referral_code, referred_by
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [id, username || null, first_name || null, last_name || null, language_code || 'en', referralCode, referrerId]
+    );
+  }
 
   // Welcome + referral bonuses applied after age+captcha verification
   return res.rows[0];
@@ -189,6 +198,8 @@ async function isSelfExcluded(user) {
 }
 
 module.exports = {
+  getOrCreate: findOrCreateUser,
+  findOrCreateUser,
   findOrCreateUser,
   getUser,
   creditBalance,

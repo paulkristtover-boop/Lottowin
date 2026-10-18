@@ -1,117 +1,27 @@
 const userService = require('../../services/userService');
-const { mainMenu } = require('../../utils/ui');
 const config = require('../../config');
+const { mainMenu } = require('../../utils/ui');
 const { formatUsd } = require('../../utils/helpers');
-const copy = require('../../utils/copy');
-const termsGate = require('../../middleware/termsGate');
-const bannerService = require('../../services/bannerService');
-const channelMembership = require('../../services/channelMembershipService');
+const dailyJackpot = require('../../services/dailyJackpotService');
 
-const onboarding = new Map();
-
-function makeCaptcha() {
-  const a = Math.floor(Math.random() * 9) + 2;
-  const b = Math.floor(Math.random() * 9) + 2;
-  return { a, b, answer: a + b };
-}
-
-module.exports = async (ctx) => {
+module.exports = async function start(ctx) {
   const payload = ctx.startPayload || '';
-  const user = await userService.findOrCreateUser(ctx.from, payload || null);
+  let ref = null;
+  if (payload) ref = payload.replace(/^ref_?/, '');
+  await userService.findOrCreateUser(ctx.from, ref);
 
-  if (!user.age_verified_at) {
-    onboarding.set(ctx.from.id, { step: 'yob' });
-    return ctx.replyWithMarkdown(
-      `👋 Welcome to *Insta Win*\n\n` +
-        `Two instant games: *4/40* and *3/30*.\n\n` +
-        `⚠️ *18+ only.* Gambling involves risk.\n\n` +
-        `Please enter your *year of birth* (e.g. \`1995\`) to continue.`
-    );
-  }
+  try {
+    await dailyJackpot.getOrCreateOpenDraw();
+  } catch (_) {}
 
-  if (!user.captcha_passed_at) {
-    const cap = makeCaptcha();
-    onboarding.set(ctx.from.id, { step: 'captcha', ...cap });
-    return ctx.replyWithMarkdown(
-      `🔒 *Quick check*\n\nWhat is *${cap.a} + ${cap.b}*? Reply with the number.`
-    );
-  }
-
-  const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
-  const locked = Number(fresh.locked_tickets) || 0;
-  const unlocked = Number(fresh.unlocked_tickets) || 0;
-  const g440 = config.games['4_40'];
-  const g330 = config.games['3_30'];
-
-  const welcome = copy.welcome(fresh);
-
-  await ctx.replyWithMarkdown(welcome, mainMenu());
-  if (!(await termsGate.hasAccepted(ctx.from.id))) {
-    await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
-  }
-  await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
-  // Weekly promo banner (logo) — once per ISO week, never blocks onboarding
-  bannerService.sendBannerToChat(ctx.telegram, ctx.chat.id, {
-    mode: 'once_per_week',
-    telegramId: ctx.from.id,
-  }).catch(() => {});
-  // public id tip
-  if (fresh.public_id) {
-    await ctx.replyWithMarkdown(
-      `🪪 Your public player ID: *${fresh.public_id}*\n_Shown on live bets & contests (Telegram username hidden)._`
-    ).catch(() => {});
-  }
+  const text =
+    `🎰 *Daily Jackpot 4/40*\n\n` +
+    `One draw per day. Ticket *${formatUsd(config.ticketPriceUsd)}* / line.\n` +
+    `Jackpot pot grows from *${config.jackpotSharePercent}%* of cash sales (no seed).\n` +
+    `Match 4 → share the pot · Match 3+ → free line next draw.\n\n` +
+    `Deposit TRX or ETH → Buy lines → Wait for draw.\n\n` +
+    `18+ · Play responsibly`;
+  await ctx.replyWithMarkdown(text, mainMenu());
 };
 
-
-module.exports.handleOnboardingText = async (ctx) => {
-  const state = onboarding.get(ctx.from.id);
-  if (!state) return false;
-
-  const text = (ctx.message.text || '').trim();
-
-  if (state.step === 'yob') {
-    const year = parseInt(text, 10);
-    if (isNaN(year)) {
-      await ctx.reply('Please enter a 4-digit year, e.g. 1995');
-      return true;
-    }
-    try {
-      await userService.setYearOfBirth(ctx.from.id, year);
-      const cap = makeCaptcha();
-      onboarding.set(ctx.from.id, { step: 'captcha', ...cap });
-      await ctx.replyWithMarkdown(
-        `✅ Age verified.\n\n🔒 *Quick check*\nWhat is *${cap.a} + ${cap.b}*?`
-      );
-    } catch (e) {
-      await ctx.reply(`❌ ${e.message}`);
-    }
-    return true;
-  }
-
-  if (state.step === 'captcha') {
-    const ans = parseInt(text, 10);
-    if (ans !== state.answer) {
-      const cap = makeCaptcha();
-      onboarding.set(ctx.from.id, { step: 'captcha', ...cap });
-      await ctx.replyWithMarkdown(`Not quite. Try again: *${cap.a} + ${cap.b}*?`);
-      return true;
-    }
-    onboarding.delete(ctx.from.id);
-    await userService.setCaptchaPassed(ctx.from.id);
-    const fresh = await userService.applyWelcomeIfEligible(ctx.from.id);
-    await ctx.replyWithMarkdown(
-      `✅ Age & security checks done.\n\nOne more step — please review our terms:`,
-    );
-    await ctx.replyWithMarkdown(termsGate.termsText(), termsGate.termsKeyboard());
-    if (fresh?.public_id) {
-      await ctx.replyWithMarkdown(
-        `🪪 Your public player ID: *${fresh.public_id}*\n_Used on live bets & contests (username hidden)._`
-      ).catch(() => {});
-    }
-    await channelMembership.maybePromptOnStart(ctx, { telegram: ctx.telegram }).catch(() => {});
-    return true;
-  }
-
-  return false;
-};
+module.exports.handleOnboardingText = async () => false;

@@ -3,85 +3,65 @@ const cryptoPayment = require('../../services/cryptoPaymentService');
 const { mainMenu, depositMenu } = require('../../utils/ui');
 const { Markup } = require('telegraf');
 const { formatUsd } = require('../../utils/helpers');
-const bannerService = require('../../services/bannerService');
-const userService = require('../../services/userService');
 
 const depositFlow = new Map();
 
-function netHuman(network) {
-  const n = cryptoPayment.normalizeNetwork(network);
-  if (n === 'erc20') return 'ERC-20 (Ethereum)';
-  if (n === 'sol') return 'Solana (SPL)';
-  return 'TRC-20 (Tron)';
-}
-
-function pendingReminderText(pending) {
-  if (!pending) return null;
-  const leftMs = Math.max(0, pending.expiresAt - Date.now());
-  const leftMin = Math.ceil(leftMs / 60000);
-  const master = cryptoPayment.getMasterAddress(pending.network);
+function pendingText(p) {
+  const left = Math.max(0, p.expiresAt - Date.now());
+  const min = Math.ceil(left / 60000);
+  const sym = p.symbol || cryptoPayment.assetSymbol(p.network);
   return (
-    `⏱ *Pending deposit* (~${leftMin} min left)\n\n` +
-    `Network: *${cryptoPayment.networkLabel(pending.network)}*\n` +
-    `Send *exactly*:\n\`${Number(pending.exactAmount).toFixed(6)}\` USDT\n\n` +
-    `To:\n\`${master}\`\n\n` +
+    `⏱ *Pending deposit* (~${min} min left)\n\n` +
+    `Network: *${cryptoPayment.networkLabel(p.network)}*\n` +
+    `Send *exactly* this amount:\n\`${p.exactAmount}\` *${sym}*\n\n` +
+    `To:\n\`${p.masterAddress}\`\n\n` +
+    `You get *${formatUsd(p.baseAmount)}* after confirm.\n` +
     `⚠️ Wrong amount = no auto-credit.`
   );
 }
 
-function pendingActions() {
+function pendingKb() {
   return Markup.inlineKeyboard([
-    [Markup.button.callback('📋 Refresh pending', 'dep:status')],
-    [Markup.button.callback('👛 Wallet', 'ux:wallet')],
-    [Markup.button.callback('« Main menu', 'menu:main')],
+    [Markup.button.callback('🔄 Refresh', 'dep:status')],
+    [Markup.button.callback('« Main', 'menu:main')],
   ]);
 }
 
 async function showDeposit(ctx) {
   depositFlow.delete(ctx.from.id);
-  try {
-    const u = await userService.getUser(ctx.from.id);
-    if (u && !u.is_first_deposit_completed) {
-      await bannerService.sendBannerToChat(ctx.telegram, ctx.chat.id, {
-        mode: 'once_per_week',
-        telegramId: ctx.from.id,
-      });
-    }
-  } catch (_) {}
-
-  const pending = await cryptoPayment.getPendingForUser(ctx.from.id);
+  const p = await cryptoPayment.getPendingForUser(ctx.from.id);
   let text =
-    `📥 *Fuel your balance*\n\n` +
-    `Send *USDT* on:\n` +
-    `• *TRC-20* (Tron) — usually cheaper gas\n` +
-    `• *ERC-20* (Ethereum)\n` +
-    `• *Solana* (SPL) — fast & low fee\n\n` +
-    `Minimum *${formatUsd(config.minDepositUsd)}* · first deposit unlocks *${config.welcomeFreeTickets}* free tickets\n\n` +
-    `You'll get a *unique exact amount* — send that amount only. We detect it automatically.`;
+    `📥 *Deposit*\n\n` +
+    `We accept:\n` +
+    `• *TRX* (Tron)\n` +
+    `• *ETH* (Ethereum)\n\n` +
+    `Min *${formatUsd(config.minDepositUsd)}*\n` +
+    `1. Pick network\n` +
+    `2. Enter USD amount (e.g. 5)\n` +
+    `3. Send the *exact* crypto shown\n` +
+    `4. Auto-credit when confirmed`;
 
-  if (pending) {
-    text += `\n\n` + pendingReminderText(pending);
-  }
-
-  await ctx.replyWithMarkdown(text, depositMenu());
+  if (p) text += `\n\n` + pendingText(p);
+  await ctx.replyWithMarkdown(text, p ? pendingKb() : depositMenu());
 }
 
 async function startNetwork(ctx, network) {
   const master = cryptoPayment.getMasterAddress(network);
   if (!master) {
     try {
-      await ctx.answerCbQuery('Network not configured');
+      await ctx.answerCbQuery('Not configured');
     } catch (_) {}
-    return ctx.reply('This network is temporarily unavailable.', mainMenu());
+    return ctx.reply(`${cryptoPayment.networkLabel(network)} address not set.`, mainMenu());
   }
   depositFlow.set(ctx.from.id, { step: 'amount', network: cryptoPayment.normalizeNetwork(network) });
   try {
     await ctx.answerCbQuery();
   } catch (_) {}
   await ctx.replyWithMarkdown(
-    `Enter the *USD amount* to deposit (e.g. \`10\` or \`25.5\`).\n\n` +
-      `Network: *${netHuman(network)}*\n` +
-      `Min: ${formatUsd(config.minDepositUsd)}\n\nOr /cancel`
+    `*${cryptoPayment.networkLabel(network)}*\n\n` +
+      `Enter *USD* amount to credit (e.g. \`5\` or \`10\`)\n` +
+      `Min: ${formatUsd(config.minDepositUsd)}\n\n` +
+      `Or /cancel`
   );
 }
 
@@ -90,10 +70,8 @@ async function showStatus(ctx) {
     await ctx.answerCbQuery();
   } catch (_) {}
   const p = await cryptoPayment.getPendingForUser(ctx.from.id);
-  if (!p) {
-    return ctx.reply('No active pending deposit.', depositMenu());
-  }
-  await ctx.replyWithMarkdown(pendingReminderText(p), pendingActions());
+  if (!p) return ctx.reply('No pending deposit.', depositMenu());
+  await ctx.replyWithMarkdown(pendingText(p), pendingKb());
 }
 
 async function handleDepositText(ctx) {
@@ -107,44 +85,26 @@ async function handleDepositText(ctx) {
     return true;
   }
 
-  const base = parseFloat(text.replace(/[^0-9.]/g, ''));
-  if (!Number.isFinite(base) || base <= 0) {
-    await ctx.reply('Invalid amount. Enter a number like 10 or 25.5');
-    return true;
-  }
-  if (base < config.minDepositUsd) {
-    await ctx.reply(`Minimum deposit is ${formatUsd(config.minDepositUsd)}`);
+  const amount = parseFloat(text.replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    await ctx.reply('Enter a valid number, e.g. 5');
     return true;
   }
 
   try {
-    const pending = await cryptoPayment.createPendingDeposit(ctx.from.id, state.network, base);
+    const pending = await cryptoPayment.createPendingDeposit(ctx.from.id, state.network, amount);
     depositFlow.delete(ctx.from.id);
-
-    const exact = pending.exactAmount.toFixed(6);
-    const mins = Math.floor(cryptoPayment.DEPOSIT_TTL_MS / 60000);
-
-    const msg =
-      `📥 *Deposit ${cryptoPayment.networkLabel(pending.network)}*\n\n` +
-      `Send *exactly* this amount (USDT):\n` +
-      `\`${exact}\`\n\n` +
-      `To this address:\n` +
-      `\`${pending.masterAddress}\`\n\n` +
-      `⏱ Valid for *${mins} minutes*\n\n` +
-      `⚠️ *CRITICAL:* Exact amount required including decimals.\n` +
-      `Base credit on success: *${formatUsd(pending.baseAmount)}*\n` +
-      `Network fees are paid by you.`;
-
-    await ctx.replyWithMarkdown(msg, pendingActions());
-    await ctx.replyWithMarkdown(
-      pendingReminderText(pending) + `\n\n_Save this message until the deposit confirms._`,
-      mainMenu()
-    );
+    await ctx.replyWithMarkdown(pendingText(pending), pendingKb());
   } catch (e) {
-    depositFlow.delete(ctx.from.id);
     await ctx.reply(`❌ ${e.message}`, mainMenu());
   }
   return true;
+}
+
+function registerActions(bot) {
+  bot.action('dep:trx', (ctx) => startNetwork(ctx, 'trx'));
+  bot.action('dep:eth', (ctx) => startNetwork(ctx, 'eth'));
+  bot.action('dep:status', (ctx) => showStatus(ctx));
 }
 
 module.exports = {
@@ -152,7 +112,6 @@ module.exports = {
   startNetwork,
   showStatus,
   handleDepositText,
-  depositMenu,
   depositFlow,
-  pendingReminderText,
+  registerActions,
 };
